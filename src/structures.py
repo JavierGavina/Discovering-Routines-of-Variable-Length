@@ -234,11 +234,20 @@ class Subsequence:
             >>> subsequence2 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
             >>> subsequence1 == subsequence2
             True
+
+            >>> subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> subsequence2 = Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 2), 2)
+            >>> subsequence1 == subsequence2
+            False
         """
 
         # Check if the parameter is an instance of Subsequence
         if not isinstance(other, Subsequence):
             raise TypeError("other must be an instance of Subsequence")
+
+        # Check if they have the same length
+        if len(self) != len(other):
+            return False
 
         # Check if the instance, date, and starting point are equal
         if not np.array_equal(self.__instance, other.get_instance()):
@@ -337,6 +346,7 @@ class Subsequence:
 
         Raises:
             TypeError: if the parameter is not of the correct type
+            ValueError: if the instances have different lengths
 
         Examples:
             >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
@@ -347,15 +357,23 @@ class Subsequence:
             2.0
         """
 
-        # Check if the parameter is an instance of Subsequence or an array
-        if isinstance(other, np.ndarray):
-            return np.max(np.abs(self.__instance - other))
-
+        # Check if the parameter is an instance of Subsequence or np.ndarray
         if isinstance(other, Subsequence):
-            return np.max(np.abs(self.__instance - other.get_instance()))
+            new_instance = other.get_instance()
 
-        # If the parameter is not an instance of Subsequence or an array, raise an error
-        raise TypeError("other must be an instance of ndarray or a Subsequence")
+        elif isinstance(other, np.ndarray):
+            new_instance = other
+
+        # If the parameter is not an instance of Subsequence or np.ndarray, raise an error
+        else:
+            raise TypeError(f"other must be an instance of Subsequence or np.ndarray. Got {type(other)} instead")
+
+        # Check if the instances have the same length
+        if len(self.__instance) != len(new_instance):
+            raise ValueError(
+                f"The instances must have the same length. len(self)={len(self.__instance)} and len(other)={len(new_instance)}")
+
+        return np.max(np.abs(self.__instance - new_instance))
 
 
 class Sequence:
@@ -888,6 +906,41 @@ class Sequence:
             })
 
         return collection
+
+    def get_subsequences_from_length(self, length: int) -> 'Sequence':
+        """
+        Returns a new sequence with subsequences of the specified length
+
+        Parameters:
+            * length: `int`. The length of the subsequences
+
+        Returns:
+            `Sequence`. A new sequence with subsequences of the specified length
+
+        Examples:
+            >>> sequence = Sequence()
+            >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 1))
+            >>> new_sequence = sequence.get_subsequences_from_length(4)
+            >>> print(new_sequence)
+            Sequence(
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([1, 2, 3, 4]),
+                        date=datetime.date(2021, 1, 1),
+                        starting_point=0
+                    )
+                ]
+            )
+        """
+
+        new_sequence = Sequence()
+
+        for subseq in self.__list_sequences:
+            if len(subseq) == length:
+                new_sequence.add_sequence(subseq)
+
+        return new_sequence
 
 
 class Cluster:

@@ -73,9 +73,23 @@ class TestSubsequence(unittest.TestCase):
 
         The expected output is:
                 * 4
-        """
 
+        Raises:
+            * ValueError: if the subsequences have different lengths
+            * TypeError: if the other subsequence is not a subsequence or a np.array
+        """
+        different_length = np.array([1, 2, 3, 4, 5])
+
+        # CASE 1: 4
         self.assertEqual(self.subsequence1.Distance(self.subsequence2), 4)
+
+        # CASE 2: ValueError
+        with self.assertRaises(ValueError):
+            self.subsequence1.Distance(different_length)
+
+        # CASE 3: TypeError
+        with self.assertRaises(TypeError):
+            self.subsequence1.Distance("not a subsequence or np.array")
 
     def test_Magnitude(self):
         """
