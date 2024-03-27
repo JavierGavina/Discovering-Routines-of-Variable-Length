@@ -383,14 +383,20 @@ class Sequence:
     Parameters:
         * subsequence: `Union[Subsequence, None]`, the subsequence to add to the sequence
 
+    Properties:
+    _______
+    **Getters:**
+        * ``length_subsequences:`` `int`. The length of the subsequences in the sequence
+
     Public Methods:
-        * add_sequence: adds a `Subsequence` instance to the `Sequence`
-        * get_by_starting_point: returns the subsequence with the specified starting point
-        * set_by_starting_point: sets the subsequence with the specified starting point
-        * get_starting_points: returns the starting points of the subsequences
-        * get_dates: returns the dates of the subsequences
-        * get_subsequences: returns the instances of the subsequences
-        * to_collection: returns the sequence as a list of dictionaries
+    _______
+        * ``add_sequence(new: Subsequence)`` : adds a `Subsequence` instance to the `Sequence`
+        * ``get_by_starting_point(starting_point: int)`` -> Subsequence: returns the subsequence with the specified starting point
+        * ``set_by_starting_point(starting_point: int, new_sequence: Subsequence):`` sets the subsequence with the specified starting point
+        * ``get_starting_points() -> list[int]:`` returns the starting points of the subsequences
+        * ``get_dates() -> list[dates]:`` returns the dates of the subsequences
+        * ``get_subsequences() -> list[np.ndarray]:`` returns the instances of the subsequences
+        * ``to_collection() -> list[dict]:`` returns the sequence as a list of dictionaries
 
     Examples:
         >>> sequence = Sequence()
@@ -914,6 +920,7 @@ class Sequence:
             >>> sequence.get_starting_points()
             [0, 4]
         """
+
         return [subseq.get_starting_point() for subseq in self.__list_sequences]
 
     def get_dates(self) -> list[datetime.date]:
@@ -955,7 +962,16 @@ class Sequence:
 
         Returns:
              `list[dict]`. The sequence as a list of dictionaries
+
+        Examples:
+            >>> sequence = Sequence()
+            >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
+            >>> sequence.to_collection()
+            [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
+             {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 1}]
         """
+
         collection = []
         for subseq in self.__list_sequences:
             collection.append({
@@ -972,18 +988,31 @@ class Cluster:
     Represents a cluster of subsequences from a sequence and a centroid.
 
     Parameters:
-        * length: `int`, the length of the subsequences
         * centroid: `np.ndarray`, the centroid of the cluster
         * instances: `Sequence`, the sequence of subsequences
 
+    Properties:
+    ________
+        Getters:
+            * centroid: `np.ndarray`, the centroid of the cluster
+            * length_cluster_subsequences: `int`, the length of each subsequence in the cluster
+
+        Setters:
+            * centroid: `np.ndarray | Subsequence`, the centroid of the cluster
+
+
     Public Methods:
-        * add_instance: adds a subsequence to the cluster
-        * get_sequences: returns the sequences of the cluster
-        * update_centroid: updates the centroid of the cluster
-        * get_starting_points: returns the starting points of the subsequences
-        * get_dates: returns the dates of the subsequences
+    ________
+        * `add_instance(new_subsequence: Subsequence)`: adds a subsequence to the cluster
+        * `update_centroid()`: updates the centroid of the cluster
+        * `get_sequences() -> Sequence`: returns the sequences of the cluster
+        * `get_starting_points() -> list[int]`: returns the starting points of the subsequences
+        * `get_dates() -> list[date]`: returns the dates of the subsequences
+        * `cumulative_magnitude() -> float`: returns the cumulative magnitude of the cluster
+
 
     Examples:
+    ________
         >>> sequence = Sequence()
         >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
         >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
@@ -1008,7 +1037,6 @@ class Cluster:
     def __init__(self, centroid: np.ndarray, instances: 'Sequence') -> None:
         """
         Parameters:
-            * length: `int`, the length of the subsequences
             * centroid: `np.ndarray`, the centroid of the cluster
             * instances: `Sequence`, the sequence of subsequences
 
@@ -1017,8 +1045,8 @@ class Cluster:
 
         Examples:
             >>> sequence = Sequence()
-            >>> sequence.add_sequence(length=4, Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> sequence.add_sequence(length=4, Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
             >>> cluster = Cluster(4, np.array([3, 4, 5, 6]), sequence)
         """
 
@@ -1028,7 +1056,8 @@ class Cluster:
         # Make a deep copy of the instances to avoid modifying the original sequence
         new_instances = copy.deepcopy(instances)
 
-        # Set the centroid and the instances
+        # Set the length centroid and the instances
+        self.__length: int = new_instances.length_subsequences
         self.__centroid: np.ndarray = centroid
         self.__instances: Sequence = new_instances
 
@@ -1338,6 +1367,10 @@ class Cluster:
         if len(self.__instances) != len(other.get_sequences()):
             return False
 
+        # Check if the length of the instances is equal
+        if self.__length != other.length_cluster_subsequences:
+            return False
+
         # Check if the instances are equal
         if not np.array_equal(self.__instances.get_subsequences(), other.get_sequences().get_subsequences()):
             return False
@@ -1377,6 +1410,61 @@ class Cluster:
             raise ValueError(
                 f"The length of the centroid must be equal to the length of the subsequences. Got {len(centroid)} and {instances.length_subsequences} instead")
 
+    @property
+    def centroid(self) -> np.ndarray:
+        """
+        Returns the centroid of the cluster
+        :return: np.ndarray. The centroid of the cluster
+        """
+        return self.__centroid
+
+    @centroid.setter
+    def centroid(self, subsequence: np.ndarray | Subsequence) -> None:
+        """
+        Sets the value of the centroid of the cluster from a subsequence
+
+        Parameters:
+            * subsequence: `Union[Subsequence|np.ndarray]`. The subsequence to set as the centroid
+
+        Raises:
+            TypeError: if the parameter is not a `Subsequence` or a numpy array
+            ValueError: if the length of the subsequence is not the same as the length of the subsequences
+        """
+
+        # Check if the length of the subsequence is the same as the length of the subsequences
+        if len(subsequence) != self.__length:
+            raise ValueError(f"the length of the subsequence must be {self.__length}. Got {len(subsequence)} instead")
+
+        # Set the centroid if it is an instance of Subsequence
+        if isinstance(subsequence, Subsequence):
+            self.__centroid = subsequence.get_instance()
+
+        # Set the centroid if it is a numpy array
+        if isinstance(subsequence, np.ndarray):
+            self.__centroid = subsequence
+
+        # Raise an error if the parameter is not a Subsequence or a numpy array
+        if not isinstance(subsequence, Subsequence) and not isinstance(subsequence, np.ndarray):
+            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array")
+
+    @property
+    def length_cluster_subsequences(self) -> int:
+        """
+        Getter that returns the length of the instances in the cluster
+
+        Returns:
+            `int`. The length of the instances in the cluster
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6, 7]), sequence)
+            >>> cluster.length_cluster_subsequences
+            5
+        """
+
+        return self.__length
+
     def add_instance(self, new_instance: 'Subsequence') -> None:
         """
         Adds a subsequence to the instances of the cluster
@@ -1411,10 +1499,9 @@ class Cluster:
             raise ValueError("new sequence is already an instance of the cluster")
 
         # Check if the length of the new instance is the same as the length of the subsequences
-        expected_length = self.__instances.length_subsequences
-        if len(new_instance) != expected_length:
+        if len(new_instance) != self.__length:
             raise ValueError(
-                f"the length of the subsequence must be {expected_length}. Got {len(new_instance)} instead")
+                f"the length of the subsequence must be {self.__length}. Got {len(new_instance)} instead")
 
         self.__instances.add_sequence(new_instance)
 
@@ -1431,6 +1518,7 @@ class Cluster:
             >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
             >>> cluster.get_sequences()
             Sequence(
+                length_subsequences=4,
                 list_sequences=[
                     Subsequence(
                         instance=np.array([1, 2, 3, 4]),
@@ -1453,34 +1541,6 @@ class Cluster:
         Updates the centroid of the cluster with the mean of the instances
         """
         self.__centroid = np.mean(self.__instances.get_subsequences(), axis=0)
-
-    @property
-    def centroid(self) -> np.ndarray:
-        """
-        Returns the centroid of the cluster
-        :return: np.ndarray. The centroid of the cluster
-        """
-        return self.__centroid
-
-    @centroid.setter
-    def centroid(self, subsequence: np.ndarray | Subsequence) -> None:
-        """
-        Sets the value of the centroid of the cluster from a subsequence
-
-        Parameters:
-            * subsequence: `Union[Subsequence|np.ndarray]`. The subsequence to set as the centroid
-
-        Raises:
-            TypeError: if the parameter is not a `Subsequence` or a numpy array
-        """
-        if isinstance(subsequence, Subsequence):
-            self.__centroid = subsequence.get_instance()
-
-        if isinstance(subsequence, np.ndarray):
-            self.__centroid = subsequence
-
-        if not isinstance(subsequence, Subsequence) and not isinstance(subsequence, np.ndarray):
-            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array")
 
     def get_starting_points(self) -> list[int]:
         """
