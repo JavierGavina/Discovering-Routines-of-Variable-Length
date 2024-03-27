@@ -423,14 +423,19 @@ class Sequence:
             >>> sequence2.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
         """
 
+        # Initialize the length of the sequence
+        self.__length: int = None
+
         # Check if the subsequence is a Subsequence instance
         if subsequence is not None:
-            if not isinstance(subsequence, Subsequence):
-                raise TypeError("subsequence has to be an instance of Subsequence")
+            self.__check_validity_params(subsequence)
 
             # Make a deep copy of the subsequence
             new_subsequence = copy.deepcopy(subsequence)
             self.__list_sequences: list[Subsequence] = [new_subsequence]
+
+            # Set the length of the sequence
+            self.__length: int = len(subsequence)
 
         # If the subsequence is None, initialize an empty list
         else:
@@ -444,9 +449,10 @@ class Sequence:
             str. The string representation of the sequence
 
         Examples:
-            >>> sequence = Sequence(subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> sequence = Sequence(subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
             >>> print(sequence)
             Sequence(
+                length_subsequences=4,
                 list_sequences=[
                     Subsequence(
                         instance=np.array([1, 2, 3, 4]),
@@ -457,7 +463,7 @@ class Sequence:
             )
         """
 
-        out_string = "Sequence(\n\tlist_sequences=[\n"
+        out_string = "Sequence(\n\tlength_subsequences=" + f"{self.__length}" + "\n\tlist_sequences=[\n"
         for seq in self.__list_sequences:
             out_string += f" {seq},\n"
 
@@ -472,9 +478,10 @@ class Sequence:
             `str`. The string representation of the sequence
 
         Examples:
-            >>> sequence = Sequence(subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> sequence = Sequence(length=4, subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
             >>> print(sequence)
             Sequence(
+                length_subsequences=4,
                 list_sequences=[
                     Subsequence(
                         instance=np.array([1, 2, 3, 4]),
@@ -484,7 +491,8 @@ class Sequence:
                 ]
             )
         """
-        out_string = "Sequence(\n\tlist_sequences=[\n"
+
+        out_string = "Sequence(\n\tlength_subsequences=" + f"{self.__length}" + "\n\tlist_sequences=[\n"
         for seq in self.__list_sequences:
             out_string += f" {seq},\n"
 
@@ -707,6 +715,47 @@ class Sequence:
         # Check if the subsequences are equal
         return np.array_equal(self.get_subsequences(), other.get_subsequences())
 
+    @property
+    def length_subsequences(self) -> int:
+        """
+        Getter that returns the length of the subsequences in the sequence
+
+        Returns:
+            `int`. The length of the subsequences in the sequence
+
+        Examples:
+            >>> sequence = Sequence(length=4, subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.length_subsequences
+            4
+        """
+
+        return self.__length
+
+    def __check_validity_params(self, subsequence: Subsequence) -> None:
+        """
+        Check if the parameters are valid
+
+        Parameters:
+            * length: `int`. The length of the sequence
+            * subsequence: `Subsequence`. The subsequence to add to the sequence
+
+        Raises:
+            TypeError: if the parameters are not of the correct type
+            ValueError: if the length of the subsequence is not the same as the length of the sequence
+
+        Examples:
+            >>> sequence = Sequence()
+            >>> sequence.__check_validity_params(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+        """
+
+        # Check if the subsequence is a Subsequence instance
+        if not isinstance(subsequence, Subsequence):
+            raise TypeError("subsequence must be an instance of Subsequence")
+
+        # Check if the length of the subsequence is the same as the length of the sequence
+        if self.__length is not None and len(subsequence) != self.__length:
+            raise ValueError("The length of the subsequence must be the same as the length of the Sequence")
+
     def _alreadyExists(self, subsequence: 'Subsequence') -> bool:
         """
         Check if the subsequence already exists in the sequence
@@ -748,6 +797,7 @@ class Sequence:
         Raises:
             TypeError: if the parameter is not of the correct type
             RuntimeError: if the subsequence already exists
+            ValueError: if the length of the subsequence is not the same as the length of the sequence
 
         Examples:
             >>> sequence = Sequence()
@@ -755,6 +805,7 @@ class Sequence:
             >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
             >>> print(sequence)
             Sequence(
+                length_subsequences=4,
                 list_sequences=[
                     Subsequence(
                         instance=np.array([1, 2, 3, 4]),
@@ -776,6 +827,14 @@ class Sequence:
         # Check if the new sequence already exists
         if self._alreadyExists(new):
             raise RuntimeError("new sequence already exists ")
+
+        if self.__length is not None and len(new) != self.__length:
+            raise ValueError(
+                f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
+
+        # If the sequence is empty, set the length of the sequence
+        if len(self.__list_sequences) == 0:
+            self.__length = len(new)
 
         self.__list_sequences.append(new)
 
@@ -907,47 +966,13 @@ class Sequence:
 
         return collection
 
-    def get_subsequences_from_length(self, length: int) -> 'Sequence':
-        """
-        Returns a new sequence with subsequences of the specified length
-
-        Parameters:
-            * length: `int`. The length of the subsequences
-
-        Returns:
-            `Sequence`. A new sequence with subsequences of the specified length
-
-        Examples:
-            >>> sequence = Sequence()
-            >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 1))
-            >>> new_sequence = sequence.get_subsequences_from_length(4)
-            >>> print(new_sequence)
-            Sequence(
-                list_sequences=[
-                    Subsequence(
-                        instance=np.array([1, 2, 3, 4]),
-                        date=datetime.date(2021, 1, 1),
-                        starting_point=0
-                    )
-                ]
-            )
-        """
-
-        new_sequence = Sequence()
-
-        for subseq in self.__list_sequences:
-            if len(subseq) == length:
-                new_sequence.add_sequence(subseq)
-
-        return new_sequence
-
 
 class Cluster:
     """
     Represents a cluster of subsequences from a sequence and a centroid.
 
     Parameters:
+        * length: `int`, the length of the subsequences
         * centroid: `np.ndarray`, the centroid of the cluster
         * instances: `Sequence`, the sequence of subsequences
 
@@ -983,6 +1008,7 @@ class Cluster:
     def __init__(self, centroid: np.ndarray, instances: 'Sequence') -> None:
         """
         Parameters:
+            * length: `int`, the length of the subsequences
             * centroid: `np.ndarray`, the centroid of the cluster
             * instances: `Sequence`, the sequence of subsequences
 
@@ -991,19 +1017,18 @@ class Cluster:
 
         Examples:
             >>> sequence = Sequence()
-            >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-            >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+            >>> sequence.add_sequence(length=4, Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(length=4, Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(4, np.array([3, 4, 5, 6]), sequence)
         """
-        if not isinstance(centroid, np.ndarray):
-            raise TypeError("centroid must be an instance of np.ndarray")
 
-        if not isinstance(instances, Sequence):
-            raise TypeError("instances must be an instance of Sequence")
+        # Check the validity of the parameters
+        self.__check_validity_params(centroid, instances)
 
         # Make a deep copy of the instances to avoid modifying the original sequence
         new_instances = copy.deepcopy(instances)
 
+        # Set the centroid and the instances
         self.__centroid: np.ndarray = centroid
         self.__instances: Sequence = new_instances
 
@@ -1327,6 +1352,31 @@ class Cluster:
 
         return True
 
+    @staticmethod
+    def __check_validity_params(centroid: np.ndarray, instances: 'Sequence') -> None:
+        """
+        Check if the parameters are valid
+
+        Parameters:
+            * centroid: `np.ndarray`. The centroid of the cluster
+            * instances: `Sequence`. The sequence of subsequences
+
+        Raises:
+            TypeError: if the parameters are not of the correct type
+            ValueError: if the length of the centroid is not the same as the length of the subsequences
+
+        """
+
+        if not isinstance(centroid, np.ndarray):
+            raise TypeError(f"centroid must be an instance of np.ndarray. Got {type(centroid)}")
+
+        if not isinstance(instances, Sequence):
+            raise TypeError(f"instances must be an instance of Sequence. Got {type(instances)}")
+
+        if len(centroid) != instances.length_subsequences:
+            raise ValueError(
+                f"The length of the centroid must be equal to the length of the subsequences. Got {len(centroid)} and {instances.length_subsequences} instead")
+
     def add_instance(self, new_instance: 'Subsequence') -> None:
         """
         Adds a subsequence to the instances of the cluster
@@ -1359,6 +1409,12 @@ class Cluster:
         # Check if the new sequence is already an instance of the cluster
         if self.__instances._alreadyExists(new_instance):
             raise ValueError("new sequence is already an instance of the cluster")
+
+        # Check if the length of the new instance is the same as the length of the subsequences
+        expected_length = self.__instances.length_subsequences
+        if len(new_instance) != expected_length:
+            raise ValueError(
+                f"the length of the subsequence must be {expected_length}. Got {len(new_instance)} instead")
 
         self.__instances.add_sequence(new_instance)
 
