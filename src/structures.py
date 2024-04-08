@@ -24,6 +24,26 @@ Basic data structure.
     * ``magnitude() -> float``: returns the magnitude of the subsequence
     * ``distance(other: Subsequence | np.ndarray) -> float``: returns the distance between the subsequence and another subsequence or array
 
+**Examples:**
+    >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+    >>> subsequence.get_instance()
+    np.array([1, 2, 3, 4])
+
+    >>> subsequence.get_date()
+    datetime.date(2021, 1, 1)
+
+    >>> subsequence.get_starting_point()
+    0
+
+    >>> subsequence.to_collection()
+    {'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}
+
+    >>> subsequence.magnitude()
+    4
+
+    >>> subsequence.distance(np.array([1, 2, 3, 4]))
+    0
+
 Sequence:
 ---------
 
@@ -32,17 +52,43 @@ Represents a sequence of subsequences
     **Parameters**:
         * ``subsequence``: Optional[Subsequence], the subsequence to add to the sequence. None is the default value
 
-    **Properties:**
-        * ``length_subsequences``: int, the length of the subsequences in the sequence
+    **Properties**:
+        *Getters:*
+            * ``length_subsequences``: int, the length of the subsequences in the sequence
 
     **Public Methods:**
-        * ``add_sequence(new: Subsequence)`` : adds a `Subsequence` instance to the `Sequence`
-        * ``get_by_starting_point(starting_point: int)`` -> Subsequence: returns the subsequence with the specified starting point
-        * ``set_by_starting_point(starting_point: int, new_sequence: Subsequence):`` sets the subsequence with the specified starting point
-        * ``get_starting_points() -> list[int]:`` returns the starting points of the subsequences
-        * ``get_dates() -> list[dates]:`` returns the dates of the subsequences
-        * ``get_subsequences() -> list[np.ndarray]:`` returns the instances of the subsequences
-        * ``to_collection() -> list[dict]:`` returns the sequence as a list of dictionaries
+        * ``add_sequence(new: Subsequence)``: adds a Subsequence instance to the Sequence
+        * ``get_by_starting_point(starting_point: int) -> Subsequence``: returns the subsequence with the specified starting point
+        * ``set_by_starting_point(starting_point: int, new_sequence: Subsequence)``: sets the subsequence with the specified starting point
+        * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
+        * ``get_dates() -> list[dates]``: returns the dates of the subsequences
+        * ``get_subsequences() -> list[np.ndarray]``: returns the instances of the subsequences
+        * ``to_collection() -> list[dict]``: returns the sequence as a list of dictionaries
+
+    **Examples:**
+
+        >>> sequence = Sequence()
+        >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+        >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+        >>> sequence.get_by_starting_point(0)
+        Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)
+
+        >>> sequence.get_starting_points()
+        [0, 4]
+
+        >>> sequence.get_dates()
+        [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
+
+        >>> sequence.get_subsequences()
+        [np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])]
+
+        >>> sequence.to_collection()
+        [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
+         {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]
+
+        >>> sequence.length_subsequences
+        4
+
 
 Cluster
 -------
@@ -50,8 +96,8 @@ Cluster
 Represents a cluster of subsequences
 
     **Parameters**:
-        * ``centroid``: np.ndarray, the centroid of the cluster
-        * ``subsequences``: list[Subsequence], the subsequences of the cluster
+        * ``centroid``: `np.ndarray`, the centroid of the cluster
+        * ``instances``: `Sequence`, the sequences of subsequences
 
     **Properties:**
         *Getters:*
@@ -62,18 +108,144 @@ Represents a cluster of subsequences
 
     **Public Methods:**
         * ``add_instance(new_subsequence: Subsequence)``: adds a subsequence to the cluster
-        * ``update_centroid()``: updates the centroid of the cluster
         * ``get_sequences() -> Sequence``: returns the sequences of the cluster
+        * ``update_centroid()``: updates the centroid of the cluster
         * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
         * ``get_dates() -> list[dates]``: returns the dates of the subsequences
-        * ``cumulative_distance() -> float``: returns the cumulative distance of the cluster
+        * ``cumulative_magnitude() -> float``: returns the cumulative magnitude of the cluster
 
-Routines: Represents a collection of clusters
-    Public Methods:
-        * add_routine: adds a cluster to the collection
-        * drop_indexes: drops the clusters with the specified indexes
-        * get_routines: returns the clusters of the collection
-        * to_collection: returns the collection as a list of dictionaries
+    **Examples**:
+
+        >>> subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+        >>> subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+
+        >>> sequence = Sequence(subsequence=subsequence1)
+        >>> cluster = Cluster(np.array([1, 1, 1, 1]), sequence)
+
+        >>> cluster.get_sequences()
+        Sequence(
+            length_subsequences=4,
+            list_sequences=[
+                Subsequence(
+                    instance=np.array([1, 2, 3, 4]),
+                    date=datetime.date(2021, 1, 1),
+                    starting_point=0
+                )
+            ]
+
+        >>> cluster.add_instance(subsequence2)
+        >>> cluster.get_sequences()
+        Sequence(
+            length_subsequences=4,
+            list_sequences=[
+                Subsequence(
+                    instance=np.array([1, 2, 3, 4]),
+                    date=datetime.date(2021, 1, 1),
+                    starting_point=0
+                ),
+                Subsequence(
+                    instance=np.array([5, 6, 7, 8]),
+                    date=datetime.date(2021, 1, 2),
+                    starting_point=4
+                )
+            ]
+
+        >>> cluster.update_centroid()
+        >>> cluster.centroid
+        np.array([3.0, 4.0, 5.0, 6.0])
+
+        >>> cluster.get_starting_points()
+        [0, 4]
+
+        >>> cluster.get_dates()
+        [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
+
+        >>> cluster.cumulative_magnitude()
+        12.0
+
+
+Routines
+--------
+
+Represents a collection of clusters
+
+    **Parameters**:
+        * ``cluster: Optional[Cluster]``, the cluster to add to the collection. Default is None
+
+    **Public Methods**:
+        * ``add_routine(new_routine: Cluster)``: adds a cluster to the collection
+        * ``drop_indexes(to_drop: list[int])``: drops the clusters with the specified indexes
+        * ``get_routines() -> list[Cluster]``: returns the clusters from the `Routines`
+        * ``get_centroids() -> list[np.ndarray]``: returns the centroids of the clusters
+        * ``to_collection() -> list[dict]``: returns the routines as a list of dictionaries
+        * ``is_empty() -> bool``: returns True if the collection is empty, False otherwise
+
+    **Examples**:
+
+        >>> subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+        >>> subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+
+        >>> sequence = Sequence(subsequence=subsequence1)
+        >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), sequence)
+
+        >>> sequence = Sequence(subsequence=subsequence2)
+        >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), sequence)
+
+        >>> routines = Routines(cluster=cluster1)
+        >>> routines.add_routine(cluster2)
+
+        >>> routines.get_routines()
+        [Cluster(
+            centroid=np.array([1, 1, 1, 1]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([1, 2, 3, 4]),
+                        date=datetime.date(2021, 1, 1),
+                        starting_point=0
+                    )
+                ]
+            )
+        ), Cluster(
+            centroid=np.array([5, 5, 5, 5]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([5, 6, 7, 8]),
+                        date=datetime.date(2021, 1, 2),
+                        starting_point=4
+                    )
+                ]
+            )
+        )]
+
+        >>> routines.get_centroids()
+        [np.array([1, 1, 1, 1]), np.array([5, 5, 5, 5])]
+
+        >>> routines.to_collection()
+        [{'centroid': np.array([1, 1, 1, 1]), 'sequences': [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}], 'length_subsequences': 4},
+         {'centroid': np.array([5, 5, 5, 5]), 'sequences': [{'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}], 'length_subsequences': 4}]
+
+        >>> routines.is_empty()
+        False
+
+        >>> routines.drop_indexes([0])
+        >>> routines.get_routines()
+        [Cluster(
+            centroid=np.array([5, 5, 5, 5]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([5, 6, 7, 8]),
+                        date=datetime.date(2021, 1, 2),
+                        starting_point=4
+                    )
+                ]
+            )
+        )]
 """
 
 import numpy as np
@@ -85,33 +257,43 @@ import copy
 
 class Subsequence:
     """
-    Basic data structure.
+    Basic data structure to represent a subsequence from a sequence which belongs to time series
 
     Parameters:
-        * instance: np.ndarray, the instance of the subsequence
-        * date: datetime.date, the date of the subsequence
-        * starting_point: int, the starting point of the subsequence
+    __________
+
+        * ``instance: np.ndarray``, the instance of the subsequence
+        * ``date: datetime.date``, the date of the subsequence
+        * ``starting_point: int``, the starting point of the subsequence
 
     Public Methods:
-        * get_instance: returns the instance of the subsequence
-        * get_date: returns the date of the subsequence
-        * get_starting_point: returns the starting point of the subsequence
-        * to_collection: returns the subsequence as a dictionary
-        * Magnitude: returns the magnitude of the subsequence
-        * Distance: returns the distance between the subsequence and another subsequence or array
+    __________
+
+        * ``get_instance() -> np.ndarray``: returns the instance of the subsequence
+        * ``get_date() -> date``: returns the date of the subsequence
+        * ``get_starting_point() -> int``: returns the starting point of the subsequence
+        * ``to_collection() -> list[dict]``: returns the subsequence as a dictionary
+        * ``magnitude() -> float``: returns the magnitude of the subsequence
+        * ``distance(other: Subsequence | np.ndarray) -> float``: returns the distance between the subsequence and another subsequence or array
 
     Examples:
+
         >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
         >>> subsequence.get_instance()
         np.array([1, 2, 3, 4])
+
         >>> subsequence.get_date()
         datetime.date(2021, 1, 1)
+
         >>> subsequence.get_starting_point()
         0
+
         >>> subsequence.to_collection()
         {'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}
+
         >>> subsequence.magnitude()
         4
+
         >>> subsequence.distance(np.array([1, 2, 3, 4]))
         0
     """
@@ -412,15 +594,18 @@ class Sequence:
     Represents a sequence of subsequences
 
     Parameters:
-        * subsequence: `Union[Subsequence, None]`, the subsequence to add to the sequence
+    _________
+        * ``subsequence: Optional[Subsequence]``, the subsequence to add to the sequence. Default is `None`
 
     Properties:
-    _______
+    _________
+
     **Getters**
-        * ``length_subsequences:`` `int`. The length of the subsequences in the sequence
+        * ``length_subsequences: int``. The length of the subsequences in the sequence
 
     Public Methods:
-    _______
+    _________
+
         * ``add_sequence(new: Subsequence)`` : adds a `Subsequence` instance to the `Sequence`
         * ``get_by_starting_point(starting_point: int)`` -> Subsequence: returns the subsequence with the specified starting point
         * ``set_by_starting_point(starting_point: int, new_sequence: Subsequence):`` sets the subsequence with the specified starting point
@@ -1020,47 +1205,54 @@ class Cluster:
     Represents a cluster of subsequences from a sequence and a centroid.
 
     Parameters:
-        * centroid: `np.ndarray`, the centroid of the cluster
-        * instances: `Sequence`, the sequence of subsequences
+        * ``centroid: np.ndarray``, the centroid of the cluster
+        * ``instances: Sequence``, the sequence of subsequences
 
     Properties:
     ________
-        Getters:
-            * centroid: `np.ndarray`, the centroid of the cluster
-            * length_cluster_subsequences: `int`, the length of each subsequence in the cluster
+        **Getters**:
+            * ``centroid: np.ndarray``, the centroid of the cluster
+            * ``length_cluster_subsequences: int``, the length of each subsequence in the cluster
 
-        Setters:
-            * centroid: `np.ndarray | Subsequence`, the centroid of the cluster
+        **Setters**:
+            * ``centroid: np.ndarray | Subsequence``, the centroid of the cluster
 
 
     Public Methods:
     ________
-        * `add_instance(new_subsequence: Subsequence)`: adds a subsequence to the cluster
-        * `update_centroid()`: updates the centroid of the cluster
-        * `get_sequences() -> Sequence`: returns the sequences of the cluster
-        * `get_starting_points() -> list[int]`: returns the starting points of the subsequences
-        * `get_dates() -> list[date]`: returns the dates of the subsequences
-        * `cumulative_magnitude() -> float`: returns the cumulative magnitude of the cluster
+
+        * ``add_instance(new_subsequence: Subsequence)``: adds a subsequence to the cluster
+        * ``update_centroid()``: updates the centroid of the cluster
+        * ``get_sequences() -> Sequence``: returns the sequences of the cluster
+        * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
+        * ``get_dates() -> list[date]``: returns the dates of the subsequences
+        * ``cumulative_magnitude() -> float``: returns the cumulative magnitude of the cluster
 
 
     Examples:
-    ________
+
         >>> sequence = Sequence()
         >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
         >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
         >>> cluster = Cluster(np.array([1, 1, 1, 1]), sequence)
         >>> cluster.get_sequences().to_collection()
         [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0},
          {'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}]
+
         >>> cluster.get_starting_points()
         [0, 4]
+
         >>> cluster.get_dates()
         [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
+
         >>> cluster.centroid
         np.array([1, 1, 1, 1])
+
         >>> cluster.centroid = np.array([1, 2, 3, 4])
         >>> cluster.centroid
         np.array([1, 2, 3, 4])
+
         >>> cluster.update_centroid()
         >>> cluster.centroid
         np.array([3, 4, 5, 6])
@@ -1613,28 +1805,84 @@ class Routines:
     Represents a collection of clusters, each of them representing a routine.
 
     Parameters:
-        * cluster: Union[Cluster, None], the cluster to add to the collection
+    _________
+        * ``cluster: Optional[Cluster]``, the cluster to add to the collection. Default is None
 
     Public Methods:
-        * add_routine: adds a cluster to the collection
-        * drop_indexes: drops the clusters with the specified indexes
-        * get_routines: returns the clusters of the collection
-        * get_centroids: returns the centroids of the clusters
-        * to_collection: returns the collection as a list of dictionaries
+    _________
+        * ``add_routine(new_routine: Cluster)``: adds a cluster to the collection
+        * ``drop_indexes(to_drop: list[int])``: drops the clusters at the specified indexes
+        * ``get_routines() -> list[Cluster]``: returns the routines as a list of clusters
+        * ``get_centroids() -> list[np.ndarray]``: returns the centroids of the clusters as a list of numpy arrays
+        * ``to_collection() -> list[dict]``: returns the routines as a list of dictionaries
+        * ``is_empty() -> bool``: checks if the collection is empty
 
     Examples:
-        >>> sequence = Sequence()
-        >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-        >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-        >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
-        >>> routines = Routines(cluster)
+
+        >>> subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+        >>> subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+
+        >>> sequence = Sequence(subsequence=subsequence1)
+        >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), sequence)
+
+        >>> sequence = Sequence(subsequence=subsequence2)
+        >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), sequence)
+
+        >>> routines = Routines(cluster=cluster1)
+        >>> routines.add_routine(cluster2)
+
         >>> routines.get_routines()
-        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)]))]
-        >>> routines.add_routine(cluster)
-        >>> routines.get_routines()
-        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])), Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)]))]
+        [Cluster(
+            centroid=np.array([1, 1, 1, 1]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([1, 2, 3, 4]),
+                        date=datetime.date(2021, 1, 1),
+                        starting_point=0
+                    )
+                ]
+            )
+        ), Cluster(
+            centroid=np.array([5, 5, 5, 5]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([5, 6, 7, 8]),
+                        date=datetime.date(2021, 1, 2),
+                        starting_point=4
+                    )
+                ]
+            )
+        )]
+
+        >>> routines.get_centroids()
+        [np.array([1, 1, 1, 1]), np.array([5, 5, 5, 5])]
+
+        >>> routines.to_collection()
+        [{'centroid': np.array([1, 1, 1, 1]), 'sequences': [{'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}], 'length_subsequences': 4},
+         {'centroid': np.array([5, 5, 5, 5]), 'sequences': [{'instance': np.array([5, 6, 7, 8]), 'date': datetime.date(2021, 1, 2), 'starting_point': 4}], 'length_subsequences': 4}]
+
+        >>> routines.is_empty()
+        False
+
         >>> routines.drop_indexes([0])
-        [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0), Subsequence(instance=np.array([5, 6, 7, 8
+        >>> routines.get_routines()
+        [Cluster(
+            centroid=np.array([5, 5, 5, 5]),
+            sequences=Sequence(
+                length_subsequences=4,
+                list_sequences=[
+                    Subsequence(
+                        instance=np.array([5, 6, 7, 8]),
+                        date=datetime.date(2021, 1, 2),
+                        starting_point=4
+                    )
+                ]
+            )
+        )]
     """
 
     def __init__(self, cluster: Optional[Cluster] = None) -> None:
@@ -2183,7 +2431,7 @@ class Routines:
 
     def is_empty(self) -> bool:
         """
-        Returns `True` if the collection is empty, `False` otherwise
+        Returns `True` if routines is empty, `False` otherwise
 
         Returns:
             `bool`. `True` if the collection is empty, `False` otherwise
