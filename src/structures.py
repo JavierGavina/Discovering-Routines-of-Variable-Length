@@ -1,41 +1,72 @@
 """
 Data Structures.
+-----------
 
 This script defines the data structures needed for the algorithm of routine detection.
 
 The module contains the following public classes
 
-Subsequence: Basic data structure.
-    Parameters:
-        * instance: np.ndarray, the instance of the subsequence
-        * date: datetime.date, the date of the subsequence
-        * starting_point: int, the starting point of the subsequence
+Subsequence
+-----------
 
-    Public methods:
-        * get_instance: returns the instance of the subsequence
-        * get_date: returns the date of the subsequence
-        * get_starting_point: returns the starting point of the subsequence
-        * to_collection: returns the subsequence as a dictionary
-        * Magnitude: returns the magnitude of the subsequence
-        * Distance: returns the distance between the subsequence and another subsequence or array
+Basic data structure.
 
-Sequence: Represents a sequence of subsequences
-    Public Methods:
-        * add_sequence: adds a subsequence to the sequence
-        * get_by_starting_point: returns the subsequence with the specified starting point
-        * set_by_starting_point: sets the subsequence with the specified starting point
-        * get_starting_points: returns the starting points of the subsequences
-        * get_dates: returns the dates of the subsequences
-        * get_subsequences: returns the instances of the subsequences
-        * to_collection: returns the sequence as a list of dictionaries
+**Parameters**:
+    * ``instance``: np.ndarray, the instance of the subsequence
+    * ``date``: datetime.date, the date of the subsequence
+    * ``starting_point``: int, the starting point of the subsequence
 
-Cluster: Represents a cluster of subsequences
-    Public Methods:
-        * add_instance: adds a subsequence to the cluster
-        * get_sequences: returns the sequences of the cluster
-        * update_centroid: updates the centroid of the cluster
-        * get_starting_points: returns the starting points of the subsequences
-        * get_dates: returns the dates of the subsequences
+**Public methods:**
+    * ``get_instance() -> np.ndarray``: returns the instance of the subsequence
+    * ``get_date() -> date``: returns the date of the subsequence
+    * ``get_starting_point() -> int``: returns the starting point of the subsequence
+    * ``to_collection() -> list[dict]``: returns the subsequence as a dictionary
+    * ``magnitude() -> float``: returns the magnitude of the subsequence
+    * ``distance(other: Subsequence | np.ndarray) -> float``: returns the distance between the subsequence and another subsequence or array
+
+Sequence:
+---------
+
+Represents a sequence of subsequences
+
+    **Parameters**:
+        * ``subsequence``: Optional[Subsequence], the subsequence to add to the sequence. None is the default value
+
+    **Properties:**
+        * ``length_subsequences``: int, the length of the subsequences in the sequence
+
+    **Public Methods:**
+        * ``add_sequence(new: Subsequence)`` : adds a `Subsequence` instance to the `Sequence`
+        * ``get_by_starting_point(starting_point: int)`` -> Subsequence: returns the subsequence with the specified starting point
+        * ``set_by_starting_point(starting_point: int, new_sequence: Subsequence):`` sets the subsequence with the specified starting point
+        * ``get_starting_points() -> list[int]:`` returns the starting points of the subsequences
+        * ``get_dates() -> list[dates]:`` returns the dates of the subsequences
+        * ``get_subsequences() -> list[np.ndarray]:`` returns the instances of the subsequences
+        * ``to_collection() -> list[dict]:`` returns the sequence as a list of dictionaries
+
+Cluster
+-------
+
+Represents a cluster of subsequences
+
+    **Parameters**:
+        * ``centroid``: np.ndarray, the centroid of the cluster
+        * ``subsequences``: list[Subsequence], the subsequences of the cluster
+
+    **Properties:**
+        *Getters:*
+            * ``centroid: np.ndarray``: returns the centroid of the cluster
+            * ``length_cluster_subsequences: int``: returns the length of the subsequences in the cluster
+        *Setters:*
+            * ``centroid: np.ndarray``: sets the centroid of the cluster
+
+    **Public Methods:**
+        * ``add_instance(new_subsequence: Subsequence)``: adds a subsequence to the cluster
+        * ``update_centroid()``: updates the centroid of the cluster
+        * ``get_sequences() -> Sequence``: returns the sequences of the cluster
+        * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
+        * ``get_dates() -> list[dates]``: returns the dates of the subsequences
+        * ``cumulative_distance() -> float``: returns the cumulative distance of the cluster
 
 Routines: Represents a collection of clusters
     Public Methods:
@@ -79,9 +110,9 @@ class Subsequence:
         0
         >>> subsequence.to_collection()
         {'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}
-        >>> subsequence.Magnitude()
+        >>> subsequence.magnitude()
         4
-        >>> subsequence.Distance(np.array([1, 2, 3, 4]))
+        >>> subsequence.distance(np.array([1, 2, 3, 4]))
         0
     """
 
@@ -99,13 +130,13 @@ class Subsequence:
             >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
         """
 
-        self.__checkType(instance, date, starting_point)
+        self.__check_type(instance, date, starting_point)
         self.__instance = instance
         self.__date = date
         self.__starting_point = starting_point
 
     @staticmethod
-    def __checkType(instance: np.ndarray, date: datetime.date, starting_point: int) -> None:
+    def __check_type(instance: np.ndarray, date: datetime.date, starting_point: int) -> None:
         """
         Checks the type of the parameters
 
@@ -319,7 +350,7 @@ class Subsequence:
 
         return {"instance": self.__instance, "date": self.__date, "starting_point": self.__starting_point}
 
-    def Magnitude(self) -> float:
+    def magnitude(self) -> float:
         """
         Returns the magnitude of the subsequence as the maximum value
 
@@ -328,13 +359,13 @@ class Subsequence:
 
         Examples:
             >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
-            >>> subsequence.Magnitude()
+            >>> subsequence.magnitude()
             4.0
         """
 
         return np.max(self.__instance)
 
-    def Distance(self, other: Union['Subsequence', np.ndarray]) -> float:
+    def distance(self, other: Union['Subsequence', np.ndarray]) -> float:
         """
         Returns the maximum absolute distance between the subsequence and another subsequence or array
 
@@ -350,10 +381,10 @@ class Subsequence:
 
         Examples:
             >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
-            >>> subsequence.Distance(np.array([1, 2, 3, 4]))
+            >>> subsequence.distance(np.array([1, 2, 3, 4]))
             0.0
 
-            >>> subsequence.Distance(Subsequence(np.array([1, 2, 3, 6]), datetime.date(2021, 1, 2), 2))
+            >>> subsequence.distance(Subsequence(np.array([1, 2, 3, 6]), datetime.date(2021, 1, 2), 2))
             2.0
         """
 
@@ -385,7 +416,7 @@ class Sequence:
 
     Properties:
     _______
-    **Getters:**
+    **Getters**
         * ``length_subsequences:`` `int`. The length of the subsequences in the sequence
 
     Public Methods:
@@ -730,7 +761,7 @@ class Sequence:
             `int`. The length of the subsequences in the sequence
 
         Examples:
-            >>> sequence = Sequence(length=4, subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence = Sequence(subsequence=Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
             >>> sequence.length_subsequences
             4
         """
@@ -762,7 +793,7 @@ class Sequence:
         if self.__length is not None and len(subsequence) != self.__length:
             raise ValueError("The length of the subsequence must be the same as the length of the Sequence")
 
-    def _alreadyExists(self, subsequence: 'Subsequence') -> bool:
+    def _already_exists(self, subsequence: 'Subsequence') -> bool:
         """
         Check if the subsequence already exists in the sequence
 
@@ -775,7 +806,7 @@ class Sequence:
         Examples:
             >>> sequence = Sequence()
             >>> sequence.add_sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> sequence._alreadyExists(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence._already_exists(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
             True
         """
 
@@ -831,9 +862,10 @@ class Sequence:
             raise TypeError("new has to be an instance of Subsequence")
 
         # Check if the new sequence already exists
-        if self._alreadyExists(new):
+        if self._already_exists(new):
             raise RuntimeError("new sequence already exists ")
 
+        # Check if the length of the subsequence is the same as the length of the sequence
         if self.__length is not None and len(new) != self.__length:
             raise ValueError(
                 f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
@@ -1397,15 +1429,17 @@ class Cluster:
         Raises:
             TypeError: if the parameters are not of the correct type
             ValueError: if the length of the centroid is not the same as the length of the subsequences
-
         """
 
+        # Check if the centroid is an instance of np.ndarray
         if not isinstance(centroid, np.ndarray):
             raise TypeError(f"centroid must be an instance of np.ndarray. Got {type(centroid)}")
 
+        # Check if the instances is an instance of Sequence
         if not isinstance(instances, Sequence):
             raise TypeError(f"instances must be an instance of Sequence. Got {type(instances)}")
 
+        # Check if the length of the centroid is the same as the length of the subsequences
         if len(centroid) != instances.length_subsequences:
             raise ValueError(
                 f"The length of the centroid must be equal to the length of the subsequences. Got {len(centroid)} and {instances.length_subsequences} instead")
@@ -1421,7 +1455,7 @@ class Cluster:
     @centroid.setter
     def centroid(self, subsequence: np.ndarray | Subsequence) -> None:
         """
-        Sets the value of the centroid of the cluster from a subsequence
+        Sets the value of the centroid from the cluster with a subsequence
 
         Parameters:
             * subsequence: `Union[Subsequence|np.ndarray]`. The subsequence to set as the centroid
@@ -1495,7 +1529,7 @@ class Cluster:
             raise TypeError("new sequence must be an instance of Subsequence")
 
         # Check if the new sequence is already an instance of the cluster
-        if self.__instances._alreadyExists(new_instance):
+        if self.__instances._already_exists(new_instance):
             raise ValueError("new sequence is already an instance of the cluster")
 
         # Check if the length of the new instance is the same as the length of the subsequences
@@ -1540,6 +1574,7 @@ class Cluster:
         """
         Updates the centroid of the cluster with the mean of the instances
         """
+
         self.__centroid = np.mean(self.__instances.get_subsequences(), axis=0)
 
     def get_starting_points(self) -> list[int]:
@@ -1570,7 +1605,7 @@ class Cluster:
              `float`. The magnitude's sum of the subsequences
         """
 
-        return sum([subsequence.Magnitude() for subsequence in self.__instances])
+        return sum([subsequence.magnitude() for subsequence in self.__instances])
 
 
 class Routines:
@@ -2047,7 +2082,6 @@ class Routines:
 
         Returns:
              Routines. The collection without the dropped clusters
-
 
         Examples:
             >>> routines = Routines()

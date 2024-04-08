@@ -17,8 +17,8 @@ class TestSubsequence(unittest.TestCase):
     The Subsequence class is a class that represents a subsequence of a time series. It has the following methods:
 
         * __init__: initializes the Subsequence object
-        * Distance: returns the distance between two subsequences
-        * Magnitude: returns the magnitude of the subsequence
+        * distance: returns the distance between two subsequences
+        * magnitude: returns the magnitude of the subsequence
         * __len__: returns the length of the subsequence
         * __getitem__: returns the element at the index i
         * __eq__: returns True if the two subsequences are equal, False otherwise
@@ -63,7 +63,7 @@ class TestSubsequence(unittest.TestCase):
 
     def test_Distance(self):
         """
-        Test the Distance method of the Subsequence class
+        Test the distance method of the Subsequence class
 
         The method should return the distance between two subsequences
 
@@ -81,19 +81,19 @@ class TestSubsequence(unittest.TestCase):
         different_length = np.array([1, 2, 3, 4, 5])
 
         # CASE 1: 4
-        self.assertEqual(self.subsequence1.Distance(self.subsequence2), 4)
+        self.assertEqual(self.subsequence1.distance(self.subsequence2), 4)
 
         # CASE 2: ValueError
         with self.assertRaises(ValueError):
-            self.subsequence1.Distance(different_length)
+            self.subsequence1.distance(different_length)
 
         # CASE 3: TypeError
         with self.assertRaises(TypeError):
-            self.subsequence1.Distance("not a subsequence or np.array")
+            self.subsequence1.distance("not a subsequence or np.array")
 
     def test_Magnitude(self):
         """
-        Test the Magnitude method of the Subsequence class
+        Test the magnitude method of the Subsequence class
 
         The method should return the magnitude of the subsequence
 
@@ -110,10 +110,10 @@ class TestSubsequence(unittest.TestCase):
                 * 16 for Subsequence 4
         """
 
-        self.assertEqual(self.subsequence1.Magnitude(), 4)
-        self.assertEqual(self.subsequence2.Magnitude(), 8)
-        self.assertEqual(self.subsequence3.Magnitude(), 12)
-        self.assertEqual(self.subsequence4.Magnitude(), 16)
+        self.assertEqual(self.subsequence1.magnitude(), 4)
+        self.assertEqual(self.subsequence2.magnitude(), 8)
+        self.assertEqual(self.subsequence3.magnitude(), 12)
+        self.assertEqual(self.subsequence4.magnitude(), 16)
 
     def test__len__(self):
         """
@@ -214,6 +214,7 @@ class TestSequence(unittest.TestCase):
         self.sequence = Sequence()
         self.subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
         self.subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+        self.other_length = Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 3), 8)
 
     def test_add_sequence(self):
         """
@@ -312,6 +313,26 @@ class TestSequence(unittest.TestCase):
         self.sequence.add_sequence(self.subsequence1)
         self.sequence.add_sequence(self.subsequence2)
         self.assertTrue(np.array_equal(self.sequence.get_subsequences(), expected_output))
+
+    def test_check_distinct_lengths(self):
+        """
+        The test should raise a ValueError if the subsequences have different lengths
+
+        The subsequences are:
+                * Subsequence 1: instances=[1, 2, 3, 4], date=2021-1-1, starting_point=0
+                * Subsequence 2: instances=[5, 6, 7, 8], date=2021-1-2, starting_point=4
+                * other length subsequence: instances=[1, 2, 3, 4, 5], date=2021-1-3, starting_point=8
+
+        The expected output is:
+                * ValueError
+        """
+
+        sequence = Sequence()
+        sequence.add_sequence(self.subsequence1)
+        sequence.add_sequence(self.subsequence2)
+
+        with self.assertRaises(ValueError):
+            sequence.add_sequence(self.other_length)
 
 
 class TestCluster(unittest.TestCase):
@@ -559,6 +580,33 @@ class TestCluster(unittest.TestCase):
         self.cluster.centroid = new_centroid
         self.assertTrue(np.array_equal(self.cluster.centroid, new_centroid))
 
+    def test_check_distinct_lengths(self):
+        """
+        The test should raise a ValueError if the instances have different length from the centroid
+        or if a new added instance has a different length from the centroid
+
+        The instances of the cluster are:
+                * Subsequence 1: instances=[1, 2, 3, 4], date=2021-1-1, starting_point=0
+                * Subsequence 2: instances=[5, 6, 7, 8], date=2021-1-2, starting_point=4
+
+        The new centroid is:
+                * [1, 3, 5, 7, 9]
+
+        The new added instance is:
+                * Subsequence 3: instances=[1, 2, 3, 4, 5], date=2021-1-3, starting_point=8
+
+        The expected output for both cases is:
+                * ValueError
+        """
+
+        # CASE 1: ValueError for the centroid
+        with self.assertRaises(ValueError):
+            Cluster(centroid=np.array([1, 3, 5, 7, 9]), instances=self.sequence)
+
+        # CASE 2: ValueError for the new added instance
+        with self.assertRaises(ValueError):
+            self.cluster.add_instance(Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 3), 8))
+
 
 class TestRoutines(unittest.TestCase):
     """
@@ -727,8 +775,8 @@ class TestDRFL(unittest.TestCase):
     The DRFL class has the following methods:
         * __minimum_distance_index: returns the index of the minimum distance in the list or array
         * __extract_subsequence: extracts a subsequence from the time series
-        * __IsMatch: returns True if the distance between the subsequences is less than epsilon, False otherwise
-        * __SubGroup: returns a Routines object with the clusters obtained from the time series
+        * __is_match: returns True if the distance between the subsequences is less than epsilon, False otherwise
+        * __subgroup: returns a Routines object with the clusters obtained from the time series
     """
 
     def setUp(self):
@@ -822,7 +870,7 @@ class TestDRFL(unittest.TestCase):
 
     def test__IsMatch(self):
         """
-        Test the __IsMatch method of the DRFL class
+        Test the __is_match method of the DRFL class
 
         The method should return True if the distance between the subsequences is less than epsilon, False otherwise
 
@@ -851,26 +899,26 @@ class TestDRFL(unittest.TestCase):
         subsequence3 = Subsequence(np.array([3, 4, 6]), datetime.date(2024, 1, 2), 0)
 
         # Case 1: S1 Subsequence; S2: Subsequence
-        self.assertTrue(self.drfl._DRFL__IsMatch(S1=subsequence1, S2=subsequence2, R=self.R))
-        self.assertFalse(self.drfl._DRFL__IsMatch(S1=subsequence1, S2=subsequence3, R=self.R))
+        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence2, R=self.R))
+        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence3, R=self.R))
 
         # Case 2: S1 Subsequence; S2: Array
-        self.assertTrue(self.drfl._DRFL__IsMatch(S1=subsequence1, S2=np.array([1, 2, 3]), R=self.R))
-        self.assertFalse(self.drfl._DRFL__IsMatch(S1=subsequence1, S2=np.array([1, 2, 6]), R=self.R))
+        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 3]), R=self.R))
+        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 6]), R=self.R))
 
         # Case 3: S1 other type than Subsequence; S2: Subsequence
         with self.assertRaises(TypeError):
-            self.drfl._DRFL__IsMatch(S1=np.array([1, 2, 3]), S2=subsequence1, R=self.R)
-            self.drfl._DRFL__IsMatch(S1="Not a Subsequence", S2=subsequence1, R=self.R)
+            self.drfl._DRFL__is_match(S1=np.array([1, 2, 3]), S2=subsequence1, R=self.R)
+            self.drfl._DRFL__is_match(S1="Not a Subsequence", S2=subsequence1, R=self.R)
 
         # Case 4: S1 Subsequence; S2: other type than array an instance
         with self.assertRaises(TypeError):
-            self.drfl._DRFL__IsMatch(S1=subsequence1, S2="Not an array", R=self.R)
-            self.drfl._DRFL__IsMatch(S1=subsequence1, S2=[1, 2, 3], R=self.R)
+            self.drfl._DRFL__is_match(S1=subsequence1, S2="Not an array", R=self.R)
+            self.drfl._DRFL__is_match(S1=subsequence1, S2=[1, 2, 3], R=self.R)
 
     def test__SubGroup(self):
         """
-        Test the __SubGroup method of the DRFL class
+        Test the __subgroup method of the DRFL class
 
         The method should return a Routines object with the clusters obtained from the time series
 
@@ -933,8 +981,8 @@ class TestDRFL(unittest.TestCase):
         expected_routine.add_routine(Cluster(np.array([5.5, 3.5, 1.25]), expected_instances_centroid3))
 
         # Check if the routine is the expected
-        routines_obtained_1 = self.drfl_fitted._DRFL__SubGroup(self.R, self.C, self.G)
-        routines_obtained_2 = self.drfl_fitted._DRFL__SubGroup(R=3, C=2, G=2)
+        routines_obtained_1 = self.drfl_fitted._DRFL__subgroup(self.R, self.C, self.G)
+        routines_obtained_2 = self.drfl_fitted._DRFL__subgroup(R=3, C=2, G=2)
 
         self.assertEqual(routines_obtained_1, expected_routine)
         self.assertNotEquals(routines_obtained_2, expected_routine)

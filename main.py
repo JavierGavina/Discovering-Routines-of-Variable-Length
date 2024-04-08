@@ -131,22 +131,12 @@ if __name__ == "__main__":
                            yticks_fontsize=20, figsize=(45, 25),
                            linewidth_bars=2, xlim=(0,50))
 
-    # drfl = DRFL(3, 2, 3, 4, 0.5)
-    # drfl.fit(time_series)
-    # drfl.show_results()
-    # print(drfl.estimate_distance(target_centroids, 0.5, 0.5, 2))
-    #
 
-    # drfl = DRFL(3, 1.0, 2,  3.0, 0.5)
-    # drfl.fit(time_series)
-    # drfl.show_results()
-    # drfl.plot_results(title_fontsize=40, labels_fontsize=35,
-    #                   xlim=(0, 15), xticks_fontsize=18,
-    #                   yticks_fontsize=20, figsize=(40, 20),
-    #                   linewidth_bars=5)
 
-    # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
-    # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+
+
+
+
 
     # PARALLEL SEARCH WITH COMPLICATED TIME SERIES
 

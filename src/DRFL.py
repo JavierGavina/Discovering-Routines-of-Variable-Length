@@ -14,9 +14,9 @@ The algorithm is implemented in the class DRFL, which has the following methods 
 
 The parameters:
     * m: Length of each secuence
-    * R: Distance threshold
+    * R: distance threshold
     * C: Frequency threshold
-    * G: Magnitude threshold
+    * G: magnitude threshold
     * epsilon: Overlap Parameter
 
 Public methods:
@@ -69,9 +69,9 @@ class DRFL:
 
     Parameters:
         * m: Length of each secuence
-        * R: Distance threshold
+        * R: distance threshold
         * C: Frequency threshold
-        * G: Magnitude threshold
+        * G: magnitude threshold
         * epsilon: Overlap Parameter
 
     Methods
@@ -103,9 +103,9 @@ class DRFL:
 
         Parameters:
             * m: `int`. Length of each subsequence.
-            * R: `float` or `int`. Distance threshold.
+            * R: `float` or `int`. distance threshold.
             * C: `int`. Frequency threshold.
-            * G: `float` or `int`. Magnitude threshold.
+            * G: `float` or `int`. magnitude threshold.
             * epsilon: `float`. Overlap parameter.
 
         Examples:
@@ -183,7 +183,7 @@ class DRFL:
         return int(np.argmin(distances))
 
     @staticmethod
-    def __IsMatch(S1: Subsequence, S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
+    def __is_match(S1: Subsequence, S2: Union[np.ndarray, Subsequence], R: int | float) -> bool:
         """
         Check if two subsequences match by checking if the distance between them is lower than the threshold distance parameter R.
 
@@ -207,11 +207,11 @@ class DRFL:
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
-            >>> drfl.__IsMatch(S1, S2, 2)
+            >>> drfl.__is_match(S1, S2, 2)
             True
 
             >>> S3 = Subsequence(instance=np.array([1, 2, 6]), date=datetime.date(2024, 1, 1), starting_point=0)
-            >>> drfl.__IsMatch(S1, S3, 2)
+            >>> drfl.__is_match(S1, S3, 2)
             False
         """
 
@@ -221,12 +221,12 @@ class DRFL:
 
         # Check if S2 is an instance of Subsequence or np.ndarray
         if isinstance(S2, Subsequence) or isinstance(S2, np.ndarray):
-            return S1.Distance(S2) <= R
+            return S1.distance(S2) <= R
 
         raise TypeError("S2 must be instance of Subsequence or np.ndarray")
 
     @staticmethod
-    def __IsOverlap(S_i: Subsequence, S_j: Subsequence):
+    def __is_overlap(S_i: Subsequence, S_j: Subsequence):
         """
         Check if two subsequences overlap by applying the following inequality from the paper:
 
@@ -257,13 +257,13 @@ class DRFL:
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__IsOverlap(S1, S2)
+            >>> drfl.__is_overlap(S1, S2)
             True
 
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=4)
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__IsOverlap(S1, S2)
+            >>> drfl.__is_overlap(S1, S2)
             False
         """
 
@@ -418,7 +418,7 @@ class DRFL:
 
         self.__sequence.add_sequence(subsequence)  # Add the subsequence to the sequences
 
-    def __NotTrivialMatch(self, subsequence: Subsequence, cluster: Cluster, start: int, R: int | float) -> bool:
+    def __not_trivial_match(self, subsequence: Subsequence, cluster: Cluster, start: int, R: int | float) -> bool:
         """
         Checks if a subsequence is not a trivial match with any of the instances from the cluster.
 
@@ -451,9 +451,9 @@ class DRFL:
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> cluster = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
-            >>> drfl.__NotTrivialMatch(S1, cluster, 0, 2)
+            >>> drfl.__not_trivial_match(S1, cluster, 0, 2)
             False
-            >>> drfl.__NotTrivialMatch(S1, cluster, 1, 2)
+            >>> drfl.__not_trivial_match(S1, cluster, 1, 2)
             True
         """
 
@@ -462,7 +462,7 @@ class DRFL:
             raise TypeError("subsequence and cluster must be instances of Subsequence and Cluster respectively")
 
         # Check if the subsequence is not a trivial match with any of the instances from the cluster
-        if not self.__IsMatch(S1=subsequence, S2=cluster.centroid, R=R):
+        if not self.__is_match(S1=subsequence, S2=cluster.centroid, R=R):
             return False
 
         # Check if there is a match between the subsequence and any subsequence with a starting point
@@ -471,12 +471,12 @@ class DRFL:
             for t in reversed(range(start + 1, end)):
                 # If some subsequence is a trivial match with a subsequence from the referenced
                 # starting point, it returns False
-                if self.__IsMatch(S1=subsequence, S2=self.__sequence.get_by_starting_point(t), R=R):
+                if self.__is_match(S1=subsequence, S2=self.__sequence.get_by_starting_point(t), R=R):
                     return False
 
         return True
 
-    def __SubGroup(self, R: float | int, C: int, G: float | int) -> Routines:
+    def __subgroup(self, R: float | int, C: int, G: float | int) -> Routines:
         """
         Group the subsequences into clusters based on their magnitude and maximum absolute distance.
 
@@ -491,9 +491,9 @@ class DRFL:
             This method is private and cannot be accessed from outside the class.
 
         Parameters:
-            * R: `float` or `int`. Distance threshold.
+            * R: `float` or `int`. distance threshold.
             * C: `int`. Frequency threshold.
-            * G: `float` or `int`. Magnitude threshold.
+            * G: `float` or `int`. magnitude threshold.
 
         Returns:
             Routines. The clusters of subsequences.
@@ -506,7 +506,7 @@ class DRFL:
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1)
             >>> drfl.fit(time_series)
-            >>> routines = drfl.__SubGroup()
+            >>> routines = drfl.__subgroup()
             >>> print(routines)
             Routines(
             list_routines=[
@@ -535,7 +535,7 @@ class DRFL:
 
         # Iterate through all the subsequences
         for i in range(len(self.__sequence)):
-            if self.__sequence[i].Magnitude() >= G:  # Check if the magnitude of the subsequence is greater than G
+            if self.__sequence[i].magnitude() >= G:  # Check if the magnitude of the subsequence is greater than G
                 if routines.is_empty():  # Initialize first cluster if its empty
                     # Create a cluster from the first subsequence
                     routines.add_routine(Cluster(centroid=self.__sequence[i].get_instance(),
@@ -543,14 +543,14 @@ class DRFL:
                     continue  # Continue to the next iteration
 
                 # Estimate all the distances between the subsequence and all the centroids of the clusters
-                distances = [self.__sequence[i].Distance(routines[j].centroid) for j in range(len(routines))]
+                distances = [self.__sequence[i].distance(routines[j].centroid) for j in range(len(routines))]
 
                 # Get the index of the minimum distance to the centroid
                 j_hat = self.__minimum_distance_index(distances)
 
                 # Check if the subsequence is not a trivial match with any of the instances within the cluster
-                # if self.__NotTrivialMatch(subsequence=self.sequence[i], cluster=routines[j_hat], start=i, R=R):
-                if self.__IsMatch(S1=self.__sequence[i], S2=routines[j_hat].centroid, R=R):
+                # if self.__not_trivial_match(subsequence=self.sequence[i], cluster=routines[j_hat], start=i, R=R):
+                if self.__is_match(S1=self.__sequence[i], S2=routines[j_hat].centroid, R=R):
                     routines[j_hat].add_instance(self.__sequence[i])  # Append new Sequence on the instances of Bm_j
                     routines[j_hat].update_centroid()  # Update center of the cluster
 
@@ -566,7 +566,7 @@ class DRFL:
 
         return filtered_routines
 
-    def __OLTest(self, cluster1: Cluster, cluster2: Cluster, epsilon: float) -> tuple[bool, bool]:
+    def __overlapping_test(self, cluster1: Cluster, cluster2: Cluster, epsilon: float) -> tuple[bool, bool]:
         """
         Test and handle overlapping clusters by determining the significance of their overlap.
 
@@ -606,7 +606,7 @@ class DRFL:
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
-            >>> drfl.__OLTest(cluster1, cluster2, 0.5)
+            >>> drfl.__overlapping_test(cluster1, cluster2, 0.5)
             (True, False)
         """
 
@@ -617,7 +617,7 @@ class DRFL:
             # Convert instance to Subsequence if needed for overlap checks
             for S_j in cluster2.get_sequences():
                 # Check for overlap between S_i and S_j
-                if self.__IsOverlap(S_i, S_j):
+                if self.__is_overlap(S_i, S_j):
                     N += 1  # Increment overlap count
                     break  # Break after finding the first overlap for S_i
 
@@ -683,7 +683,7 @@ class DRFL:
         for i in range(len(self.__routines) - 1):
             for j in range(i + 1, len(self.__routines)):
                 if i in keep_indices and j in keep_indices:  # Process only if both clusters are still marked to keep
-                    keep_i, keep_j = self.__OLTest(self.__routines[i], self.__routines[j], epsilon)
+                    keep_i, keep_j = self.__overlapping_test(self.__routines[i], self.__routines[j], epsilon)
 
                     # Update keep indices based on OLTest outcome
                     if not keep_i:
@@ -726,7 +726,7 @@ class DRFL:
 
         # Group the subsequences into clusters based on their magnitude and
         # maximum absolute distance and filter the clusters based on their frequency
-        self.__routines = self.__SubGroup(R=self.R, C=self.C, G=self.G)
+        self.__routines = self.__subgroup(R=self.R, C=self.C, G=self.G)
 
         # Obtain the indices of the clusters to keep based on the overlap test
         keep_indices = self.__obtain_keep_indices(self.epsilon)
