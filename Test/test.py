@@ -774,9 +774,9 @@ class TestDRFL(unittest.TestCase):
 
     The DRFL class has the following methods:
         * __minimum_distance_index: returns the index of the minimum distance in the list or array
-        * __extract_subsequence: extracts a subsequence from the time series
+        * _extract_subsequence: extracts a subsequence from the time series
         * __is_match: returns True if the distance between the subsequences is less than epsilon, False otherwise
-        * __subgroup: returns a Routines object with the clusters obtained from the time series
+        * _subgroup: returns a Routines object with the clusters obtained from the time series
     """
 
     def setUp(self):
@@ -834,7 +834,7 @@ class TestDRFL(unittest.TestCase):
 
     def test__extract_subsequence(self):
         """
-        Test the __extract_subsequence method of the DRFL class
+        Test the _extract_subsequence method of the DRFL class
 
         The method should extract a subsequence from the time series
 
@@ -852,7 +852,7 @@ class TestDRFL(unittest.TestCase):
         """
 
         # Case 1: extracts correctly the first subsequence
-        self.drfl._DRFL__extract_subsequence(self.time_series, 0)
+        self.drfl._extract_subsequence(self.time_series, 0)
         sequence = self.drfl._DRFL__sequence.get_by_starting_point(0)
         self.assertEqual(sequence.get_instance().tolist(), [1, 3, 6])
         self.assertEqual(sequence.get_date(), datetime.date(2024, 1, 1))
@@ -860,13 +860,13 @@ class TestDRFL(unittest.TestCase):
 
         # Case 2: check if t is an integer
         with self.assertRaises(TypeError):
-            self.drfl._DRFL__extract_subsequence(self.time_series, 0.5)
-            self.drfl._DRFL__extract_subsequence(self.time_series, "not a integer")
+            self.drfl._extract_subsequence(self.time_series, 0.5)
+            self.drfl._extract_subsequence(self.time_series, "not a integer")
 
         # Case 3: check if t is in the range of the time series
         with self.assertRaises(ValueError):
-            self.drfl._DRFL__extract_subsequence(self.time_series, -1)
-            self.drfl._DRFL__extract_subsequence(self.time_series, 100)
+            self.drfl._extract_subsequence(self.time_series, -1)
+            self.drfl._extract_subsequence(self.time_series, 100)
 
     def test__IsMatch(self):
         """
@@ -918,7 +918,7 @@ class TestDRFL(unittest.TestCase):
 
     def test__SubGroup(self):
         """
-        Test the __subgroup method of the DRFL class
+        Test the _subgroup method of the DRFL class
 
         The method should return a Routines object with the clusters obtained from the time series
 
@@ -981,8 +981,8 @@ class TestDRFL(unittest.TestCase):
         expected_routine.add_routine(Cluster(np.array([5.5, 3.5, 1.25]), expected_instances_centroid3))
 
         # Check if the routine is the expected
-        routines_obtained_1 = self.drfl_fitted._DRFL__subgroup(self.R, self.C, self.G)
-        routines_obtained_2 = self.drfl_fitted._DRFL__subgroup(R=3, C=2, G=2)
+        routines_obtained_1 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, self.R, self.C, self.G)
+        routines_obtained_2 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, R=3, C=2, G=2)
 
         self.assertEqual(routines_obtained_1, expected_routine)
         self.assertNotEquals(routines_obtained_2, expected_routine)

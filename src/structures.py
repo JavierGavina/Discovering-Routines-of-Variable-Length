@@ -1123,9 +1123,12 @@ class Sequence:
         # If not found, raise an error indicating the starting point does not exist
         raise ValueError("The starting point doesn't exist")
 
-    def get_starting_points(self) -> list[int]:
+    def get_starting_points(self, to_array: bool = False) -> list[int]:
         """
         Returns the starting points of the subsequences
+
+        Parameters:
+            * to_array: `bool`. If True, returns the starting points as a numpy array. Default is `False`
 
         Returns:
              `list[int]`. The starting points of the subsequences
@@ -1138,7 +1141,12 @@ class Sequence:
             [0, 4]
         """
 
-        return [subseq.get_starting_point() for subseq in self.__list_sequences]
+        sequence_starting_points = [subseq.get_starting_point() for subseq in self.__list_sequences]
+
+        if to_array:
+            return np.array(sequence_starting_points)
+
+        return sequence_starting_points
 
     def get_dates(self) -> list[datetime.date]:
         """
@@ -1157,7 +1165,7 @@ class Sequence:
 
         return [subseq.get_date() for subseq in self.__list_sequences]
 
-    def get_subsequences(self) -> list[np.ndarray]:
+    def get_subsequences(self, to_array: bool = False) -> Union[list[np.ndarray], np.ndarray]:
         """
         Returns the instances of the subsequences
 
@@ -1170,8 +1178,16 @@ class Sequence:
             >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
             >>> sequence.get_subsequences()
             [np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8])]
+
+            >>> sequence.get_subsequences(to_array=True)
+            array([np.array([1, 2, 3, 4]), np.array([5, 6, 7, 8]])
         """
-        return [subseq.get_instance() for subseq in self.__list_sequences]
+        subsequences = [subseq.get_instance() for subseq in self.__list_sequences]
+
+        if to_array:
+            return np.array(subsequences)
+
+        return subsequences
 
     def to_collection(self) -> list[dict]:
         """
@@ -1769,13 +1785,19 @@ class Cluster:
 
         self.__centroid = np.mean(self.__instances.get_subsequences(), axis=0)
 
-    def get_starting_points(self) -> list[int]:
+    def get_starting_points(self, to_array: bool = False) -> Union[list[int], np.ndarray]:
         """
         Returns the starting points of the subsequences
 
+        Parameters:
+            * to_array: `bool`. If True, the starting points are returned as a numpy array. Default is False
+
         Returns:
-             `list[int]`. The starting points of the subsequences
+             `list[int] | np.ndarray`. The starting points of the subsequences
         """
+
+        if to_array:
+            return np.array(self.__instances.get_starting_points())
 
         return self.__instances.get_starting_points()
 
@@ -1920,8 +1942,10 @@ class Routines:
                 raise TypeError("cluster has to be an instance of Cluster")
 
             self.__routines: list[Cluster] = [cluster]
+            self.__hierarchy = cluster.length_cluster_subsequences
         else:
             self.__routines: list[Cluster] = []
+            self.__hierarchy = None
 
     def __repr__(self):
         """
@@ -2227,6 +2251,9 @@ class Routines:
         if not isinstance(other, Routines):
             raise TypeError("other has to be an instance of Routines")
 
+        if self.__hierarchy != other.__hierarchy:
+            raise ValueError("the hierarchy of the routines must be the same")
+
         new_routines = Routines()
         new_routines.__routines = self.__routines + other.__routines
         return new_routines
@@ -2273,6 +2300,9 @@ class Routines:
         if len(self.__routines) != len(other.__routines):
             return False
 
+        if self.__hierarchy != other.__hierarchy:
+            return False
+
         # Check if the clusters are equal
         for idx, routine in enumerate(self.__routines):
             if routine != other.__routines[idx]:
@@ -2314,6 +2344,14 @@ class Routines:
                 ]
             )
         """
+        # Check if the hierarchy is not initialized
+        if self.__hierarchy is None:
+            self.__hierarchy = new_routine.length_cluster_subsequences
+
+        # Check if the length of the subsequences is the same as the hierarchy
+        if new_routine.length_cluster_subsequences != self.__hierarchy:
+            raise ValueError(
+                f"the length of the subsequences must be {self.__hierarchy}. Got {new_routine.length_cluster_subsequences} instead")
 
         # Check if the new_routine is a Cluster instance
         if not isinstance(new_routine, Cluster):
@@ -2448,3 +2486,103 @@ class Routines:
         """
 
         return len(self.__routines) == 0
+
+
+class HierarchyRoutine:
+    """
+    Represents hierarchical routines using the hierarchy of the subsequences as the
+    length from each. Is used to combine routines with different length of subsequences
+    """
+
+    def __init__(self, routines: Optional[Routines] = None) -> None:
+        self.__list_routines: list[Routines] = []
+        self.__hierarchy: list[int] = []
+
+        if routines is not None:
+            if not isinstance(routines, Routines):
+                raise TypeError("routines has to be an instance of Routines")
+
+            if len(routines) == 0:
+                raise ValueError("routines cannot be empty")
+
+            self.__hierarchy = [routines[0].length_cluster_subsequences]
+            self.__list_routines.append(routines)
+
+    def __str__(self):
+        out_string = "HierarchyRoutine(\n"
+        for idx, routine in enumerate(self.__list_routines):
+            out_string += f" [Hierarchy: {self.__hierarchy[idx]}. \n\t{routine} ], \n"
+
+        out_string = out_string[:-2] + out_string[-1] + ")"
+        return out_string
+
+    def __repr__(self):
+        out_string = "HierarchyRoutine(\n"
+        for idx, routine in enumerate(self.__list_routines):
+            out_string += f" [Hierarchy: {self.__hierarchy[idx]}. \n\t{routine} ], \n"
+
+        out_string = out_string[:-2] + out_string[-1] + ")"
+        return out_string
+
+    def __setitem__(self, hierarchy: int, routine: Routines):
+        if not isinstance(routine, Routines):
+            raise TypeError("routine has to be an instance of Routines")
+
+        if len(routine) == 0:
+            raise ValueError("routine cannot be empty")
+
+        if hierarchy != routine[0].length_cluster_subsequences:
+            raise ValueError(f"the hierarchy of the routines must be the same. Expected {hierarchy}. Got {routine[0].length_cluster_subsequences} instead")
+
+        if hierarchy in self.__hierarchy:
+            idx = self.__hierarchy.index(hierarchy)
+            self.__list_routines[idx] = routine
+
+        self.__hierarchy.append(hierarchy)
+        self.__list_routines.append(routine)
+
+    def __getitem__(self, hierarchy: int) -> Routines:
+        if not isinstance(hierarchy, int):
+            raise TypeError("hierarchy has to be an integer")
+
+        if hierarchy not in self.__hierarchy:
+            raise ValueError("hierarchy not found")
+
+        idx = self.__hierarchy.index(hierarchy)
+        return self.__list_routines[idx]
+
+    def __len__(self) -> int:
+        return len(self.__list_routines)
+
+    def __iter__(self) -> tuple[iter, iter]:
+        return iter(self.__list_routines), iter(self.__hierarchy)
+
+    def to_dictionary(self) -> dict:
+        out_dict = {}
+        for idx, hierarchy in enumerate(self.__hierarchy):
+            out_dict[hierarchy] = self.__list_routines[idx].to_collection()
+        return out_dict
+
+
+if __name__ == "__main__":
+    sequence1 = Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0))
+    sequence1.add_sequence(Subsequence(np.array([5, 6, 7]), datetime.date(2021, 1, 2), 4))
+    cluster1 = Cluster(np.array([3, 4, 5]), sequence1)
+
+    sequence2 = Sequence(Subsequence(np.array([9, 10, 11]), datetime.date(2021, 1, 3), 0))
+    sequence2.add_sequence(Subsequence(np.array([13, 14, 15]), datetime.date(2021, 1, 4), 4))
+    cluster2 = Cluster(np.array([7, 8, 9]), sequence2)
+
+    sequence3 = Sequence(Subsequence(np.array([17, 18, 19, 20]), datetime.date(2021, 1, 5), 0))
+    sequence3.add_sequence(Subsequence(np.array([21, 22, 23, 21]), datetime.date(2021, 1, 6), 4))
+    cluster3 = Cluster(np.array([11, 12, 13, 14]), sequence3)
+
+    routines1 = Routines(cluster=cluster1)
+    routines1.add_routine(cluster2)
+
+    routines2 = Routines(cluster=cluster3)
+    routines2.add_routine(cluster3)
+
+    hierarchy_routine = HierarchyRoutine(routines1)
+    hierarchy_routine[3] = routines2
+    print(hierarchy_routine)

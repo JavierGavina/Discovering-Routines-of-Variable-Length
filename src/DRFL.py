@@ -48,10 +48,9 @@ import matplotlib.cm as cm
 import warnings
 
 from itertools import product
+from src.structures import Subsequence, Sequence, Cluster, Routines
 
 sys.path.append("../")
-
-from src.structures import Subsequence, Sequence, Cluster, Routines
 
 
 class DRFL:
@@ -85,7 +84,6 @@ class DRFL:
     Examples:
     --------
 
-        >>> from DRFL import DRFL
         >>> import pandas as pd
 
         >>> time_series = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
@@ -109,7 +107,6 @@ class DRFL:
             * epsilon: `float`. Overlap parameter.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
         """
 
@@ -125,7 +122,7 @@ class DRFL:
         self.time_series: pd.Series = None
 
     @staticmethod
-    def __check_type_time_series(time_series: pd.Series) -> None:
+    def _check_type_time_series(time_series: pd.Series) -> None:
         """
         Check the type of the time series.
 
@@ -139,10 +136,9 @@ class DRFL:
             This method is private and cannot be accessed from outside the class.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 2, 3, 4, 5])
-            >>> DRFL.__check_type_time_series(time_series)
+            >>> DRFL._check_type_time_series(time_series)
             TypeError: time_series must be a pandas Series with a DatetimeIndex
         """
 
@@ -170,7 +166,6 @@ class DRFL:
             This method is private and cannot be accessed from outside the class.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> distances = [1, 2, 3, 4, 5]
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__minimum_distance_index(distances)
@@ -202,7 +197,6 @@ class DRFL:
             This method is private and cannot be accessed from outside the class.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
@@ -252,7 +246,6 @@ class DRFL:
             TypeError: If S_i or S_j are not instances of Subsequence.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
@@ -296,7 +289,6 @@ class DRFL:
             `float`. The inverse gaussian distance between the target and estimated number of instances.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__inverse_gaussian_distance(N_target=3, N_estimated=3, sigma=2)
             0
@@ -351,7 +343,7 @@ class DRFL:
 
         return np.min(matrix_of_distances, axis=1)
 
-    def __extract_subsequence(self, time_series: pd.Series, t: int) -> None:
+    def _extract_subsequence(self, time_series: pd.Series, t: int) -> None:
         """
         Extract a subsequence from the time series and adds the subsequence to Sequence object.
 
@@ -367,12 +359,11 @@ class DRFL:
             This method cannot be accessed from outside
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 2, 3, 4, 5])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
-            >>> drfl.__extract_subsequence(time_series, 0) # This property cannot be accessed from outside the class
+            >>> drfl._extract_subsequence(time_series, 0) # This property cannot be accessed from outside the class
             >>> print(drfl.__sequence)
             Sequence(
                 list_sequences=[
@@ -400,7 +391,7 @@ class DRFL:
             )
         """
         # Check if time_series is a pandas series
-        self.__check_type_time_series(time_series)
+        self._check_type_time_series(time_series)
 
         # Check if t is an integer
         if not isinstance(t, int):
@@ -445,7 +436,6 @@ class DRFL:
              TypeError: If subsequence is not an instance of `Subsequence` or cluster is not an instance of `Cluster`.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
@@ -476,7 +466,7 @@ class DRFL:
 
         return True
 
-    def __subgroup(self, R: float | int, C: int, G: float | int) -> Routines:
+    def _subgroup(self, sequence: Sequence, R: float | int, C: int, G: float | int) -> Routines:
         """
         Group the subsequences into clusters based on their magnitude and maximum absolute distance.
 
@@ -491,6 +481,7 @@ class DRFL:
             This method is private and cannot be accessed from outside the class.
 
         Parameters:
+            * sequences: `Sequence`. The subsequences to group into clusters.
             * R: `float` or `int`. distance threshold.
             * C: `int`. Frequency threshold.
             * G: `float` or `int`. magnitude threshold.
@@ -499,14 +490,13 @@ class DRFL:
             Routines. The clusters of subsequences.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
             >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1)
             >>> drfl.fit(time_series)
-            >>> routines = drfl.__subgroup()
+            >>> routines = drfl._subgroup()
             >>> print(routines)
             Routines(
             list_routines=[
@@ -534,30 +524,30 @@ class DRFL:
         routines = Routines()
 
         # Iterate through all the subsequences
-        for i in range(len(self.__sequence)):
-            if self.__sequence[i].magnitude() >= G:  # Check if the magnitude of the subsequence is greater than G
+        for i in range(len(sequence)):
+            if sequence[i].magnitude() >= G:  # Check if the magnitude of the subsequence is greater than G
                 if routines.is_empty():  # Initialize first cluster if its empty
                     # Create a cluster from the first subsequence
-                    routines.add_routine(Cluster(centroid=self.__sequence[i].get_instance(),
-                                                 instances=Sequence(subsequence=self.__sequence[i])))
+                    routines.add_routine(Cluster(centroid=sequence[i].get_instance(),
+                                                 instances=Sequence(subsequence=sequence[i])))
                     continue  # Continue to the next iteration
 
                 # Estimate all the distances between the subsequence and all the centroids of the clusters
-                distances = [self.__sequence[i].distance(routines[j].centroid) for j in range(len(routines))]
+                distances = [sequence[i].distance(routines[j].centroid) for j in range(len(routines))]
 
                 # Get the index of the minimum distance to the centroid
                 j_hat = self.__minimum_distance_index(distances)
 
                 # Check if the subsequence is not a trivial match with any of the instances within the cluster
                 # if self.__not_trivial_match(subsequence=self.sequence[i], cluster=routines[j_hat], start=i, R=R):
-                if self.__is_match(S1=self.__sequence[i], S2=routines[j_hat].centroid, R=R):
-                    routines[j_hat].add_instance(self.__sequence[i])  # Append new Sequence on the instances of Bm_j
+                if self.__is_match(S1=sequence[i], S2=routines[j_hat].centroid, R=R):
+                    routines[j_hat].add_instance(sequence[i])  # Append new Sequence on the instances of Bm_j
                     routines[j_hat].update_centroid()  # Update center of the cluster
 
                 else:
                     # create a new cluster//routine
-                    new_cluster = Cluster(centroid=self.__sequence[i].get_instance(),
-                                          instances=Sequence(subsequence=self.__sequence[i]))
+                    new_cluster = Cluster(centroid=sequence[i].get_instance(),
+                                          instances=Sequence(subsequence=sequence[i]))
                     routines.add_routine(new_cluster)  # Add the new cluster to the routines
 
         # Filter by frequency
@@ -598,7 +588,6 @@ class DRFL:
             * The method does not modify the clusters directly but provides guidance on which clusters to keep or discard.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> import pandas as pd
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
@@ -654,7 +643,6 @@ class DRFL:
              ValueError: If epsilon is not between 0 and 1.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> import pandas as pd
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
@@ -706,7 +694,6 @@ class DRFL:
              TypeError: If the input time series is not a `pandas Series` or if its index is not a `DatetimeIndex`.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
@@ -715,18 +702,18 @@ class DRFL:
             >>> print(drfl.routines)
         """
 
-        self.__check_type_time_series(time_series)
+        self._check_type_time_series(time_series)
         self.time_series = time_series
 
         # Set the already_fitted attribute to True
         self.__already_fitted = True
 
         for i in range(len(self.time_series) - self.m + 1):
-            self.__extract_subsequence(self.time_series, i)
+            self._extract_subsequence(self.time_series, i)
 
         # Group the subsequences into clusters based on their magnitude and
         # maximum absolute distance and filter the clusters based on their frequency
-        self.__routines = self.__subgroup(R=self.R, C=self.C, G=self.G)
+        self.__routines = self._subgroup(sequence=self.__sequence, R=self.R, C=self.C, G=self.G)
 
         # Obtain the indices of the clusters to keep based on the overlap test
         keep_indices = self.__obtain_keep_indices(self.epsilon)
@@ -769,7 +756,6 @@ class DRFL:
             ValueError: If alpha is not between 0 and 1 or sigma is not greater than 1.
 
         Examples:
-            >>> from DRFL import DRFL
             >>> import numpy as np
             >>> target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
@@ -979,7 +965,6 @@ class ParallelSearchDRFL:
 
     Examples:
     --------
-        >>> from DRFL import ParallelSearchDRFL
         >>> import pandas as pd
         >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
         >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
@@ -1215,7 +1200,6 @@ class ParallelSearchDRFL:
             RuntimeError: If the model has not been fitted yet.
 
         Examples:
-            >>> from DRFL import ParallelSearchDRFL
             >>> import pandas as pd
 
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
@@ -1257,7 +1241,6 @@ class ParallelSearchDRFL:
             RuntimeError: If the model has not been fitted yet.
 
         Examples:
-            >>> from DRFL import ParallelSearchDRFL
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
@@ -1279,3 +1262,157 @@ class ParallelSearchDRFL:
 
         results = self.cv_results()
         return results.iloc[0].to_dict()
+
+
+class DRGS(DRFL):
+    def __init__(self, length_range: tuple[int, int], R: Union[float, int], C: int, G: Union[float, int],
+                 epsilon: float) -> None:
+        super().__init__(m=length_range[0], R=R, C=C, G=G, epsilon=epsilon)
+        self.__length_range = length_range
+        self.time_series: pd.Series
+
+    @staticmethod
+    def __union_routines(left: Routines, right: Routines) -> Routines:
+        return left + right
+
+    @staticmethod
+    def __extract_components(sequence: Sequence, inverse: bool = False) -> tuple[np.ndarray, list[datetime.date], list[int]]:
+        subsequence = sequence.get_subsequences(to_array=True).flatten()
+        dates = sequence.get_dates()
+        starting_points = sequence.get_starting_points()
+
+        if inverse:
+            subsequence = np.flip(subsequence)
+            dates = np.flip(dates)
+            starting_points = np.flip(starting_points)
+
+        return subsequence, dates, starting_points
+
+    def __grow_from_left(self, sequence: Sequence) -> Sequence:
+        m_next = sequence.length_subsequences + 1
+        subsequence, dates, starting_points = self.__extract_components(sequence)
+        sequence_left = Sequence()
+        for i in range(sequence.length_subsequences):
+            if starting_points[i] + m_next < len(self.time_series):
+                instance = self.time_series[starting_points[i]:starting_points[i]+m_next].values
+                sequence_left.add_sequence(
+                    Subsequence(instance=instance, date=dates[i], starting_point=starting_points[i])
+                )
+
+        return sequence_left
+
+    def __grow_from_right(self, sequence: Sequence) -> Sequence:
+        m_next = sequence.length_subsequences + 1
+        subsequence, dates, starting_points = self.__extract_components(sequence)
+        sequence_right = Sequence()
+        for i in range(sequence.length_subsequences):
+            if starting_points[i] - 1 > 0:
+                instance = self.time_series[starting_points[i]-1:starting_points[i] + m_next-1].values
+                sequence_right.add_sequence(
+                    Subsequence(instance=instance,
+                                date=self.time_series.index[starting_points[i]-1],
+                                starting_point=starting_points[i]-1)
+                )
+
+        return sequence_right
+
+    def __overlap_remove(self, routines: Routines) -> Routines:
+        pass
+
+    def __execute_drfl(self, time_series: pd.Series, m: int) -> Routines:
+        super().__init__(m=m, R=self.R, C=self.C, G=self.G, epsilon=self.epsilon)
+        super().fit(time_series)
+        return super().get_results()
+
+    def fit(self, time_series: pd.Series):
+        super()._check_type_time_series(time_series)
+        self.time_series = time_series
+
+        # Initialization
+        init_routine = self.__execute_drfl(self.time_series, self.__length_range[0])
+        actual_length = self.__length_range[0] + 1
+        self.__routines: list[Routines] = []
+        self.__routines += [init_routine]
+        # iterate over the range of lengths
+        while actual_length <= self.__length_range[1] and not self.__routines[actual_length-1].is_empty():
+            print("llego a entrar")
+            routines_l_k = Routines()
+            for cluster in self.__routines[actual_length-1]:
+                instances = cluster.get_sequences()
+
+                left_grow = self.__grow_from_left(instances)
+                right_grow = self.__grow_from_right(instances)
+
+                left_routines = super()._subgroup(sequence=left_grow, R=self.R, C=self.C, G=self.G)
+                right_routines = super()._subgroup(sequence=right_grow, R=self.R, C=self.C, G=self.G)
+
+                routines_l_k += self.__union_routines(left_routines, right_routines)
+
+            self.__routines += [routines_l_k]
+            actual_length += 1
+
+
+
+# class DRGS(DRFL):
+#     def __init__(self, m_initial: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float,
+#                  m_max: Optional[int] = None, threshold: float = 0.5) -> None:
+#         super().__init__(m=m_initial, R=R, C=C, G=G, epsilon=epsilon)
+#         self.m_max = m_max or m_initial + 5  # Define un límite máximo para la longitud de la secuencia si no se proporciona
+#         self.threshold = threshold
+#     def fit(self, time_series: pd.Series) -> None:
+#         super().fit(time_series)
+#         self._grow_routines()
+#
+#     def _grow_routines(self):
+#         """
+#         Extiende las rutinas identificadas fusionando rutinas consecutivas para formar clusters con secuencias de mayor longitud.
+#         """
+#         while self.m < self.m_max:
+#             new_routines = Routines()
+#             for i in range(len(self.__list_routines) - 1):
+#                 routine1 = self.__list_routines[i]
+#                 routine2 = self.__list_routines[i + 1]
+#
+#                 # Verifica si las rutinas son consecutivas
+#                 if self._are_consecutive(routine1, routine2):
+#                     # Fusiona los centroides de las dos rutinas en una nueva de longitud m + 1
+#                     new_centroid = self._merge_centroids(routine1.centroid, routine2.centroid)
+#                     new_routines.add_routine(
+#                         Cluster(centroid=new_centroid, instances=[]))  # Añade instancias según sea necesario
+#
+#             if new_routines.is_empty():
+#                 break  # Termina si no se encuentran más rutinas consecutivas para fusionar
+#
+#             self.m += 1
+#             self.__list_routines = new_routines
+#             super().fit(self.time_series)  # Vuelve a ejecutar DRFL con la nueva longitud de secuencia m
+#
+#     def _are_consecutive(self, left: Cluster, right: Cluster) -> bool:
+#         """
+#         Determina si dos rutinas son consecutivas.
+#         """
+#
+#         # Implementa la lógica para verificar si las rutinas son consecutivas
+#         minlength = min(len(left), len(right))
+#         left_sp, right_sp = left.get_starting_points(to_array=True), right.get_starting_points(to_array=True)
+#
+#         difference = right_sp[0:minlength] - left_sp[0:minlength]
+#
+#         n_consecutive = np.sum(difference == 1)
+#
+#         return n_consecutive / minlength >= self.threshold
+#
+#     @staticmethod
+#     def _merge_centroids(centroid1: np.ndarray, centroid2: np.ndarray) -> np.ndarray:
+#         """
+#         Fusiona dos centroides para formar un nuevo centroide de longitud m + 1.
+#         """
+#         # Implementa la lógica de fusión de centroides
+#         pass
+
+if __name__ == "__main__":
+    time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+    time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+
+    drgs = DRGS(length_range=(3, 5), R=2, C=3, G=4, epsilon=1.0)
+    drgs.fit(time_series)
