@@ -45,10 +45,11 @@ import pandas as pd
 from typing import Union, Optional
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib import gridspec
 import warnings
 
 from itertools import product
-from src.structures import Subsequence, Sequence, Cluster, Routines
+from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine
 
 sys.path.append("../")
 
@@ -147,6 +148,48 @@ class DRFL:
 
         if not isinstance(time_series.index, pd.DatetimeIndex):
             raise TypeError("time_series index must be a pandas DatetimeIndex")
+
+    @staticmethod
+    def _check_plot_params(**kwargs: dict) -> None:
+        """
+        Check the validity of the parameters for the plot_results method.
+
+        Parameters:
+            * kwargs: `dict`. The parameters to check.
+
+        Raises:
+            TypeError: If some parameter is not valid or has an invalid value.
+
+        """
+        # Get the arguments of the method and check their validity
+        saved_args = locals()
+        integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize", "text_fontsize"]
+        tuple_params = ["figsize", "xlim"]
+
+        # Check the validity of the parameters
+        for key, value in saved_args["kwargs"].items():
+            # Check if the numerical parameters are integers
+            if key in integer_params:
+                if not isinstance(value, int):
+                    raise TypeError(f"{key} must be an integer. Got {type(value)}")
+
+            # Check if the tuple parameters are tuples of integers
+            if key in tuple_params:
+                if not isinstance(value, tuple) or not all(isinstance(i, int) for i in value):
+                    # In the case of xlim, it can be None
+                    if key == "xlim" and value is None:
+                        continue
+                    raise TypeError(f"{key} must be a tuple of integers.")
+
+            # Check if linewidth_bars is an integer or a float
+            if key == "linewidth_bars":
+                if not isinstance(value, (int, float)):
+                    raise TypeError(f"{key} must be an integer or a float. Got {type(value)}")
+
+            # Check if save_dir is a string
+            if key == "save_dir":
+                if value is not None and not isinstance(value, str):
+                    raise TypeError(f"{key} must be a string indicating path to save the plot. Got {type(value)}")
 
     @staticmethod
     def __minimum_distance_index(distances: Union[np.ndarray, list]) -> int:
@@ -865,6 +908,9 @@ class DRFL:
            This method has to be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
         """
 
+        args = locals()
+        self._check_plot_params(**args)
+
         # Check if the model has been fitted
         if not self.__already_fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
@@ -1269,14 +1315,18 @@ class DRGS(DRFL):
                  epsilon: float) -> None:
         super().__init__(m=length_range[0], R=R, C=C, G=G, epsilon=epsilon)
         self.__length_range = length_range
+        self.__hierarchical_routines = HierarchyRoutine()
         self.time_series: pd.Series
+
+        self.__already_fitted = False
 
     @staticmethod
     def __union_routines(left: Routines, right: Routines) -> Routines:
         return left + right
 
     @staticmethod
-    def __extract_components(sequence: Sequence, inverse: bool = False) -> tuple[np.ndarray, list[datetime.date], list[int]]:
+    def __extract_components(sequence: Sequence, inverse: bool = False) -> tuple[
+        np.ndarray, list[datetime.date], list[int]]:
         subsequence = sequence.get_subsequences(to_array=True).flatten()
         dates = sequence.get_dates()
         starting_points = sequence.get_starting_points()
@@ -1292,9 +1342,9 @@ class DRGS(DRFL):
         m_next = sequence.length_subsequences + 1
         subsequence, dates, starting_points = self.__extract_components(sequence)
         sequence_left = Sequence()
-        for i in range(sequence.length_subsequences):
+        for i in range(len(sequence)):
             if starting_points[i] + m_next < len(self.time_series):
-                instance = self.time_series[starting_points[i]:starting_points[i]+m_next].values
+                instance = self.time_series[starting_points[i]:starting_points[i] + m_next].values
                 sequence_left.add_sequence(
                     Subsequence(instance=instance, date=dates[i], starting_point=starting_points[i])
                 )
@@ -1305,13 +1355,13 @@ class DRGS(DRFL):
         m_next = sequence.length_subsequences + 1
         subsequence, dates, starting_points = self.__extract_components(sequence)
         sequence_right = Sequence()
-        for i in range(sequence.length_subsequences):
+        for i in range(len(sequence)):
             if starting_points[i] - 1 > 0:
-                instance = self.time_series[starting_points[i]-1:starting_points[i] + m_next-1].values
+                instance = self.time_series[starting_points[i] - 1:starting_points[i] + m_next - 1].values
                 sequence_right.add_sequence(
                     Subsequence(instance=instance,
-                                date=self.time_series.index[starting_points[i]-1],
-                                starting_point=starting_points[i]-1)
+                                date=self.time_series.index[starting_points[i] - 1],
+                                starting_point=starting_points[i] - 1)
                 )
 
         return sequence_right
@@ -1331,13 +1381,19 @@ class DRGS(DRFL):
         # Initialization
         init_routine = self.__execute_drfl(self.time_series, self.__length_range[0])
         actual_length = self.__length_range[0] + 1
-        self.__routines: list[Routines] = []
-        self.__routines += [init_routine]
+
+        if init_routine.is_empty():
+            warnings.warn("No routines have been discovered", UserWarning)
+            return self.__hierarchical_routines
+
+        self.__hierarchical_routines.add_routine(init_routine)
+
         # iterate over the range of lengths
-        while actual_length <= self.__length_range[1] and not self.__routines[actual_length-1].is_empty():
-            print("llego a entrar")
+        while actual_length <= self.__length_range[1] and not \
+                self.__hierarchical_routines[actual_length - 1].is_empty():
+
             routines_l_k = Routines()
-            for cluster in self.__routines[actual_length-1]:
+            for k, cluster in enumerate(self.__hierarchical_routines[actual_length - 1]):
                 instances = cluster.get_sequences()
 
                 left_grow = self.__grow_from_left(instances)
@@ -1346,73 +1402,193 @@ class DRGS(DRFL):
                 left_routines = super()._subgroup(sequence=left_grow, R=self.R, C=self.C, G=self.G)
                 right_routines = super()._subgroup(sequence=right_grow, R=self.R, C=self.C, G=self.G)
 
-                routines_l_k += self.__union_routines(left_routines, right_routines)
+                if routines_l_k.is_empty():
+                    routines_l_k = self.__union_routines(left_routines, right_routines)
+                else:
+                    join_routines = self.__union_routines(left_routines, right_routines)
+                    routines_l_k = self.__union_routines(routines_l_k, join_routines)
 
-            self.__routines += [routines_l_k]
+            if routines_l_k.is_empty():
+                break
+
+            self.__hierarchical_routines.add_routine(routines_l_k)
             actual_length += 1
 
+        self.__already_fitted = True
 
+    def get_results(self) -> HierarchyRoutine:
+        """
+        Returns the discovered routines as a `HierarchyRoutine` object.
 
-# class DRGS(DRFL):
-#     def __init__(self, m_initial: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float,
-#                  m_max: Optional[int] = None, threshold: float = 0.5) -> None:
-#         super().__init__(m=m_initial, R=R, C=C, G=G, epsilon=epsilon)
-#         self.m_max = m_max or m_initial + 5  # Define un límite máximo para la longitud de la secuencia si no se proporciona
-#         self.threshold = threshold
-#     def fit(self, time_series: pd.Series) -> None:
-#         super().fit(time_series)
-#         self._grow_routines()
-#
-#     def _grow_routines(self):
-#         """
-#         Extiende las rutinas identificadas fusionando rutinas consecutivas para formar clusters con secuencias de mayor longitud.
-#         """
-#         while self.m < self.m_max:
-#             new_routines = Routines()
-#             for i in range(len(self.__list_routines) - 1):
-#                 routine1 = self.__list_routines[i]
-#                 routine2 = self.__list_routines[i + 1]
-#
-#                 # Verifica si las rutinas son consecutivas
-#                 if self._are_consecutive(routine1, routine2):
-#                     # Fusiona los centroides de las dos rutinas en una nueva de longitud m + 1
-#                     new_centroid = self._merge_centroids(routine1.centroid, routine2.centroid)
-#                     new_routines.add_routine(
-#                         Cluster(centroid=new_centroid, instances=[]))  # Añade instancias según sea necesario
-#
-#             if new_routines.is_empty():
-#                 break  # Termina si no se encuentran más rutinas consecutivas para fusionar
-#
-#             self.m += 1
-#             self.__list_routines = new_routines
-#             super().fit(self.time_series)  # Vuelve a ejecutar DRFL con la nueva longitud de secuencia m
-#
-#     def _are_consecutive(self, left: Cluster, right: Cluster) -> bool:
-#         """
-#         Determina si dos rutinas son consecutivas.
-#         """
-#
-#         # Implementa la lógica para verificar si las rutinas son consecutivas
-#         minlength = min(len(left), len(right))
-#         left_sp, right_sp = left.get_starting_points(to_array=True), right.get_starting_points(to_array=True)
-#
-#         difference = right_sp[0:minlength] - left_sp[0:minlength]
-#
-#         n_consecutive = np.sum(difference == 1)
-#
-#         return n_consecutive / minlength >= self.threshold
-#
-#     @staticmethod
-#     def _merge_centroids(centroid1: np.ndarray, centroid2: np.ndarray) -> np.ndarray:
-#         """
-#         Fusiona dos centroides para formar un nuevo centroide de longitud m + 1.
-#         """
-#         # Implementa la lógica de fusión de centroides
-#         pass
+        Returns:
+            `HierarchyRoutine`. The discovered routines as a `HierarchyRoutine` object.
+
+        Note:
+            The `HierarchyRoutine` object provides methods and properties to further explore and manipulate the discovered routines.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+            >>> print(drgs.get_results())
+
+        """
+        return self.__hierarchical_routines
+
+    def show_results(self) -> None:
+        """
+        Displays the discovered routines after fitting the model to the time series data.
+
+        This method prints out detailed information about each discovered routine, including the centroid of each cluster, the subsequence instances forming the routine, and the dates/times these routines occur.
+
+        Note:
+            This method should be called after the `fit` method to ensure that routines have been discovered and are ready to be displayed.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+            >>> drgs.show_results()
+        """
+
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        for length, routine in self.__hierarchical_routines.items:
+            print(f"\n\t\t\t\t\t\t\t\t\t ROUTINES OF LENGTH {length}")
+            print("_" * 100)
+            for i, b in enumerate(routine):
+                print(f"\tCentroid {i + 1}: {b.centroid}")
+                print(f"\tRoutine {i + 1}: {b.get_sequences().get_subsequences()}")
+                print(f"\tDate {i + 1}: {b.get_dates()}")
+                print(f"\tStarting Points {i + 1}: ", b.get_starting_points())
+                if len(routine) > 1 and i < len(routine) - 1:
+                    print("\n\t", "-" * 80)
+
+    def plot_hierarchical_results(self, title_fontsize: int = 20,
+                                  xticks_fontsize: int = 20, yticks_fontsize: int = 20,
+                                  labels_fontsize: int = 20, figsize: tuple[int, int] = (30, 10),
+                                  text_fontsize: int = 20, linewidth_bars: Union[int, float] = 1.5,
+                                  xlim: Optional[tuple[int, int]] = None,
+                                  save_dir: Optional[str] = None):
+
+        """
+        This method uses matplotlib to plot the results of the algorithm.
+        The plot shows the time series data with vertical dashed lines indicating the start of each discovered routine.
+        The color of each routine is determined by the order in which they were discovered.
+        Each row in the plot represents a different hierarchy level,
+        and each column represents a different routine within that hierarchy level.
+
+        Parameters:
+            * title_fontsize: `int` (default is 20). Size of the title plot.
+            * xticks_fontsize: `int` (default is 20). Size of the xticks.
+            * yticks_fontsize: `int (default is 20)`. Size of the yticks.
+            * labels_fontsize: `int` (default is 20). Size of the labels.
+            * figsize: `tuple[int, int]` (default is (30, 10)). Size of the figure.
+            * text_fontsize: `int` (default is 20). Size of the text.
+            * linewidth_bars: `int` | `float` (default is 1.5). Width of the bars in the plot.
+            * xlim: `tuple[int, int]` (default is None). Limit of the x-axis with starting points.
+            * save_dir: `str` (default is None). Directory to save the plot.
+
+        Notes:
+            This method has to be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+            >>> drgs.plot_hierarchical_results()
+        """
+        # Check the validity of the parameters
+        args = locals()
+        super()._check_plot_params(**args)
+
+        # Check if the model has been fitted before plotting
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        # Calculate the number of clusters per routine and determine plot dimensions
+        n_cluster_per_routine = [len(routine) for routine in self.__hierarchical_routines.values]
+        n_columns = max(n_cluster_per_routine)
+        n_rows = len(self.__hierarchical_routines)
+        maximum = max(self.time_series)
+
+        # Set default x-axis limits if not provided
+        xlim = xlim or (0, len(self.time_series))
+
+        # Create the figure, grid layout and base colors for the plot
+        fig = plt.figure(figsize=figsize)
+        gs = gridspec.GridSpec(n_rows, n_columns, figure=fig)
+        base_colors = cm.rainbow(np.linspace(0, 1, n_columns))
+
+        # Plot each routine in the hierarchical routines
+        for i, (length, routine) in enumerate(self.__hierarchical_routines.items):
+            for j, cluster in enumerate(routine):
+                # Add subplot for each cluster; use entire row if only one cluster
+                fig.add_subplot(gs[i, :]) if len(routine) == 1 else fig.add_subplot(gs[i, j])
+
+                # Set the colors for the time series bars
+                colors = ["gray"] * len(self.time_series)
+                for sp in cluster.get_starting_points():
+                    # Plot a vertical-dashed line at the starting point of each subsequence in the cluster within the x-axis limits
+                    if xlim[0] <= sp <= xlim[1]:
+                        plt.axvline(x=sp, color=base_colors[j], linestyle="--")
+                        # Annotate the time series points with their values
+                        for k in range(cluster.length_cluster_subsequences):
+                            if sp + k <= xlim[1]:
+                                plt.text(x=sp + k - 0.05, y=self.time_series[sp + k] - 0.8,
+                                         s=f"{self.time_series[sp + k]}", fontsize=text_fontsize,
+                                         backgroundcolor="white", color=base_colors[j])
+
+                                colors[sp + k] = base_colors[j]
+
+                # Customize the title for each subplot
+                plt.title(f"Hierarchy {length} Routine {j + 1}", fontsize=title_fontsize)
+
+                # Plot the time series data as a bar plot
+                plt.bar(np.arange(0, len(self.time_series)), self.time_series.values,
+                        color=colors, edgecolor="black", linewidth=linewidth_bars)
+
+                # Set the ticks on the x-axis and y-axis
+                plt.xticks(ticks=np.arange(xlim[0], xlim[1]),
+                           labels=np.arange(xlim[0], xlim[1]),
+                           fontsize=xticks_fontsize)
+
+                plt.yticks(fontsize=yticks_fontsize)
+
+                # Set the labels for the x-axis and y-axis
+                plt.xlabel("Starting Points", fontsize=labels_fontsize)
+                plt.ylabel("Magnitude", fontsize=labels_fontsize)
+
+                # Set the limits of the x-axis and y-axis
+                plt.xlim(xlim[0] - 0.5, xlim[1])
+                plt.ylim(0, maximum + 1)
+
+        # Adjust the layout of the plot
+        plt.tight_layout()
+
+        # Save the plot to the specified directory if provided
+        if save_dir:
+            plt.savefig(save_dir)
+
+        # Display the plot
+        plt.show()
+
 
 if __name__ == "__main__":
     time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+
+    # repeat the time series 10 times
+    # time_series = pd.concat([time_series] * 10)
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
-    drgs = DRGS(length_range=(3, 5), R=2, C=3, G=4, epsilon=1.0)
+    drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=1)
     drgs.fit(time_series)
+    drgs.show_results()
+    drgs.plot_hierarchical_results()

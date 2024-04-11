@@ -7,7 +7,7 @@ import time
 from multiprocessing import cpu_count
 from itertools import product
 
-from src.DRFL import DRFL, ParallelSearchDRFL
+from src.DRFL import DRFL, ParallelSearchDRFL, DRGS
 
 import argparse
 
@@ -120,7 +120,12 @@ if __name__ == "__main__":
                            yticks_fontsize=20, figsize=(45, 25),
                            linewidth_bars=2, xlim=(0, 50))
 
-
+    DRGS = DRGS((3, 8), 2, 3, 5, 1)
+    DRGS.fit(time_series)
+    DRGS.show_results()
+    DRGS.plot_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
+                            yticks_fontsize=20, figsize=(45, 25),
+                            linewidth_bars=2, xlim=(0, 50))
 
 
 
