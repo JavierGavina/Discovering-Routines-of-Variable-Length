@@ -547,6 +547,10 @@ class Subsequence:
 
         return np.max(self.__instance)
 
+    def inverse_magnitude(self) -> float:
+
+        return np.min(self.__instance)
+
     def distance(self, other: Union['Subsequence', np.ndarray]) -> float:
         """
         Returns the maximum absolute distance between the subsequence and another subsequence or array

@@ -775,7 +775,7 @@ class TestDRFL(unittest.TestCase):
     The DRFL class has the following methods:
         * __minimum_distance_index: returns the index of the minimum distance in the list or array
         * _extract_subsequence: extracts a subsequence from the time series
-        * __is_match: returns True if the distance between the subsequences is less than epsilon, False otherwise
+        * __is_match: returns True if the distance between the subsequences is less than _epsilon, False otherwise
         * _subgroup: returns a Routines object with the clusters obtained from the time series
     """
 
@@ -784,11 +784,11 @@ class TestDRFL(unittest.TestCase):
         Set up the DRFL object and the time series for the tests
 
         The parameters of the DRFL object are:
-            * m = 3
-            * G = 4
-            * R = 2
-            * C = 3
-            * epsilon = 1
+            * _m = 3
+            * _G = 4
+            * _R = 2
+            * _C = 3
+            * _epsilon = 1
 
         The time series is:
         [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
@@ -872,13 +872,13 @@ class TestDRFL(unittest.TestCase):
         """
         Test the __is_match method of the DRFL class
 
-        The method should return True if the distance between the subsequences is less than epsilon, False otherwise
+        The method should return True if the distance between the subsequences is less than _epsilon, False otherwise
 
         The time series is:
         [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
 
         The parameters of the DRFL object are:
-              * R = 2
+              * _R = 2
 
         The subsequences are:
             * Subsequence1: [1, 2, 3], Date: 2024-1-1, Starting Point: 0
@@ -926,11 +926,11 @@ class TestDRFL(unittest.TestCase):
         [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
 
         The parameters of the DRFL object are:
-           * m = 3
-           * G = 4
-           * R = 2
-           * C = 3
-           * epsilon = 1
+           * _m = 3
+           * _G = 4
+           * _R = 2
+           * _C = 3
+           * _epsilon = 1
 
         The expected output is:
 

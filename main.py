@@ -19,7 +19,7 @@ argparser.add_argument("--param_m", type=int, default=4, help="length of the sub
 argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
 argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
 argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
-argparser.add_argument("--epsilon", type=float, default=0.5, help="minimum overlap percentage")
+argparser.add_argument("--_epsilon", type=float, default=0.5, help="minimum overlap percentage")
 
 
 def process_sequence(sequence: list):
@@ -146,20 +146,20 @@ if __name__ == "__main__":
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
     # target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]
     #
-    # R = [x for x in range(1, 6, 1)]
-    # C = [x for x in range(1, 10, 1)]
-    # G = [x for x in range(1, 6, 1)]
-    # epsilon = [0.5, 1]
+    # _R = [x for x in range(1, 6, 1)]
+    # _C = [x for x in range(1, 10, 1)]
+    # _G = [x for x in range(1, 6, 1)]
+    # _epsilon = [0.5, 1]
     # alpha = 0.5
     # sigma = 3
     #
-    # parallel_search = ParallelSearchDRFL(n_jobs=10, alpha=alpha, sigma=sigma, param_grid={'m': 3, 'R': R, 'C': C, 'G': G, 'epsilon': epsilon})
+    # parallel_search = ParallelSearchDRFL(n_jobs=10, alpha=alpha, sigma=sigma, param_grid={'_m': 3, '_R': _R, '_C': _C, '_G': _G, '_epsilon': _epsilon})
     # parallel_search.fit(time_series, target_centroids=target_centroids)
     # results = parallel_search.cv_results()
     # best_params = parallel_search.best_params()
     # print(results.head())
     # print(best_params)
-    # best_drfl = DRFL(3, best_params["R"], best_params["C"], best_params["G"], best_params["epsilon"])
+    # best_drfl = DRFL(3, best_params["_R"], best_params["_C"], best_params["_G"], best_params["_epsilon"])
     # best_drfl.fit(time_series)
     #
     # detected_routines = best_drfl.get_results()
@@ -194,15 +194,15 @@ if __name__ == "__main__":
     # # Sequential search
     # st = time.time()
     # result = []
-    # for R, C, G, epsilon in params:
-    #     drfl = DRFL(7, R, C, G, epsilon)
+    # for _R, _C, _G, _epsilon in params:
+    #     drfl = DRFL(7, _R, _C, _G, _epsilon)
     #     drfl.fit(time_series)
     #     mean_distance = drfl.estimate_distance(target_centroids, alpha, sigma)
-    #     result.append({"R": R, "C": C, "G": G, "epsilon": epsilon, "mean_distance": mean_distance})
+    #     result.append({"_R": _R, "_C": _C, "_G": _G, "_epsilon": _epsilon, "mean_distance": mean_distance})
     #
     # print(f"Elapsed sequential time: {time.time() - st}")
     #
-    # param_grid = {'m': 7, 'R': R_params, 'C': C_params, 'G': G_params, 'epsilon': [1], 'alpha': [alpha],
+    # param_grid = {'_m': 7, '_R': R_params, '_C': C_params, '_G': G_params, '_epsilon': [1], 'alpha': [alpha],
     #               'sigma': [sigma]}
     #
     # # Parallel search: comparing time
@@ -232,7 +232,7 @@ if __name__ == "__main__":
     # top = results.head()
     # print(top)
     #
-    # best_drfl = DRFL(7, best_params["R"], best_params["C"], best_params["G"], best_params["epsilon"])
+    # best_drfl = DRFL(7, best_params["_R"], best_params["_C"], best_params["_G"], best_params["_epsilon"])
     # best_drfl.fit(time_series)
     # best_drfl.show_results()
     # best_drfl.plot_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
