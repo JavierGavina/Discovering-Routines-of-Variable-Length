@@ -548,6 +548,17 @@ class Subsequence:
         return np.max(self.__instance)
 
     def inverse_magnitude(self) -> float:
+        """
+        Returns the inverse magnitude of the subsequence as the minimum value
+
+        Returns:
+            `float`. The inverse magnitude of the subsequence
+
+        Examples:
+            >>> subsequence = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> subsequence.inverse_magnitude()
+            1.0
+        """
 
         return np.min(self.__instance)
 
@@ -2255,17 +2266,19 @@ class Routines:
         if not isinstance(other, Routines):
             raise TypeError("other has to be an instance of Routines")
 
+        # Check if the routines are empty
         if other.is_empty() and not self.is_empty():
             return self
 
+        # Check if the routines are empty
         if not other.is_empty() and self.is_empty():
             return other
 
-        if not other.is_empty():
-            if self.__hierarchy != other[0].length_cluster_subsequences:
-                raise ValueError(
-                    f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
+        # Check if the hierarchy is the same
+        if not other.is_empty() and self.__hierarchy != other[0].length_cluster_subsequences:
+            raise ValueError(f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
 
+        # Concatenate the routines if both are not empty
         new_routines = Routines()
         new_routines.__routines = self.__routines + other.__routines
         new_routines.__hierarchy = self.__hierarchy

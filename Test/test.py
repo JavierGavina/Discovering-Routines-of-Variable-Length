@@ -793,11 +793,11 @@ class TestDRFL(unittest.TestCase):
         The time series is:
         [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
         """
-        self.m = 3
-        self.G = 4
-        self.R = 2
-        self.C = 3
-        self.epsilon = 1
+        self._m = 3
+        self._G = 4
+        self._R = 2
+        self._C = 3
+        self._epsilon = 1
         self.time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
         self.time_series.index = pd.date_range(start="2024-01-01", periods=len(self.time_series))
         self.drfl = DRFL(m=3, G=4, R=2, C=3, epsilon=1)
@@ -899,22 +899,22 @@ class TestDRFL(unittest.TestCase):
         subsequence3 = Subsequence(np.array([3, 4, 6]), datetime.date(2024, 1, 2), 0)
 
         # Case 1: S1 Subsequence; S2: Subsequence
-        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence2, R=self.R))
-        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence3, R=self.R))
+        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence2, R=self._R))
+        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=subsequence3, R=self._R))
 
         # Case 2: S1 Subsequence; S2: Array
-        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 3]), R=self.R))
-        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 6]), R=self.R))
+        self.assertTrue(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 3]), R=self._R))
+        self.assertFalse(self.drfl._DRFL__is_match(S1=subsequence1, S2=np.array([1, 2, 6]), R=self._R))
 
         # Case 3: S1 other type than Subsequence; S2: Subsequence
         with self.assertRaises(TypeError):
-            self.drfl._DRFL__is_match(S1=np.array([1, 2, 3]), S2=subsequence1, R=self.R)
-            self.drfl._DRFL__is_match(S1="Not a Subsequence", S2=subsequence1, R=self.R)
+            self.drfl._DRFL__is_match(S1=np.array([1, 2, 3]), S2=subsequence1, R=self._R)
+            self.drfl._DRFL__is_match(S1="Not a Subsequence", S2=subsequence1, R=self._R)
 
         # Case 4: S1 Subsequence; S2: other type than array an instance
         with self.assertRaises(TypeError):
-            self.drfl._DRFL__is_match(S1=subsequence1, S2="Not an array", R=self.R)
-            self.drfl._DRFL__is_match(S1=subsequence1, S2=[1, 2, 3], R=self.R)
+            self.drfl._DRFL__is_match(S1=subsequence1, S2="Not an array", R=self._R)
+            self.drfl._DRFL__is_match(S1=subsequence1, S2=[1, 2, 3], R=self._R)
 
     def test__SubGroup(self):
         """
@@ -981,7 +981,7 @@ class TestDRFL(unittest.TestCase):
         expected_routine.add_routine(Cluster(np.array([5.5, 3.5, 1.25]), expected_instances_centroid3))
 
         # Check if the routine is the expected
-        routines_obtained_1 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, self.R, self.C, self.G)
+        routines_obtained_1 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, self._R, self._C, self._G)
         routines_obtained_2 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, R=3, C=2, G=2)
 
         self.assertEqual(routines_obtained_1, expected_routine)

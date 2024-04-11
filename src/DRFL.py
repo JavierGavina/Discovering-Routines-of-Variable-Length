@@ -96,7 +96,7 @@ class DRFL:
 
     """
 
-    def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float, L: Union[float, int]):
+    def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float, L: Union[float, int] = 0):
         """
         Initialize the DRFL algorithm.
 
@@ -1365,6 +1365,35 @@ class DRGS(DRFL):
 
     @staticmethod
     def __union_routines(left: Routines, right: Routines) -> Routines:
+        """
+        Union of two routines.
+
+        Returns:
+            `Routines`. The union of the two routines in one routine with the clusters combined.
+
+        Examples:
+            >>> left = Routines(Cluster(centroid=np.array([1, 2, 3]), sequences=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> right = Routines(Cluster(centroid=np.array([3, 2, 1]), sequences=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> union = DRGS.__union_routines(left, right)
+            >>> print(union)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid=np.array([1, 2, 3])
+                        - instances=[[1, 2, 3]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        ),
+                    Cluster(
+                        - centroid=np.array([3, 2, 1])
+                        - instances=[[3, 2, 1]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        )
+                    ]
+                )
+        """
+
         return left + right
 
     @staticmethod
