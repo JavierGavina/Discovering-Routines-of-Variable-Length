@@ -1608,6 +1608,10 @@ class TestDRGS(unittest.TestCase):
 
         This method should grow a sequence from the left side of the time series taking as input a Sequence
 
+        The time series is:
+
+        [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
+
         The sequence is:
         Sequence(
             list_subsequences=[
@@ -1659,6 +1663,64 @@ class TestDRGS(unittest.TestCase):
 
         # Check if the sequence is the expected
         self.assertEqual(self.drgs_fitted._DRGS__grow_from_left(self.sequence), expected_output)
+
+    def test__grow_from_right(self):
+        """
+
+        Test the __grow_from_right method of the DRGS class
+
+        This method should grow a sequence from the right side of the time series taking as input a Sequence
+
+        The time series is:
+
+        [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
+
+        The sequence is:
+        Sequence(
+            list_subsequences=[
+                Subsequence(
+                    - instance = [1, 3, 6]
+                    - date = 2024-1-1
+                    - starting_point = 0
+                ),
+                Subsequence(
+                    - instance = [2, 3, 6]
+                    - date = 2024-1-7
+                    - starting_point = 6
+                ),
+                Subsequence(
+                    - instance = [1, 3, 6]
+                    - date = 2024-1-12
+                    - starting_point = 11
+                )
+            ]
+        )
+
+        The expected output is:
+
+        right:
+        Sequence(
+            list_sequences=[
+                Subsequence(
+                    - instance = [1, 2, 3, 6]
+                    - date = 2024-1-6
+                    - starting_point = 5
+                ),
+                Subsequence(
+                    - instance = [1, 1, 3, 6]
+                    - date = 2024-1-10
+                    - starting_point = 10
+                )
+            ]
+        )
+        """
+
+        # Expected output
+        expected_output = Sequence(Subsequence(np.array([1, 2, 3, 6]), datetime.date(2024, 1, 6), 5))
+        expected_output.add_sequence(Subsequence(np.array([1, 1, 3, 6]), datetime.date(2024, 1, 10), 10))
+
+        # Check if the sequence is the expected
+        self.assertEqual(self.drgs_fitted._DRGS__grow_from_right(self.sequence), expected_output)
 
 
 if __name__ == '__main__':

@@ -225,7 +225,7 @@ class DRFL:
         """
         # Get the arguments of the method and check their validity
         saved_args = locals()
-        integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize", "text_fontsize"]
+        integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize", "coloured_text_fontsize", "text_fontsize"]
         tuple_params = ["figsize", "xlim"]
 
         # Check the validity of the parameters
@@ -242,6 +242,10 @@ class DRFL:
                     if key == "xlim" and value is None:
                         continue
                     raise TypeError(f"{key} must be a tuple of integers.")
+
+            if key == "show_xticks":
+                if not isinstance(value, bool):
+                    raise TypeError(f"{key} must be a boolean. Got {type(value)}")
 
             # Check if linewidth_bars is an integer or a float
             if key == "linewidth_bars":
@@ -1523,7 +1527,10 @@ class DRGS(DRFL):
         # Extract the components from the sequence
         _, dates, starting_points = sequence.extract_components(flatten=True)
         sequence_left = Sequence()
+
+        # Iterate over the sequence
         for i in range(len(sequence)):
+            # Check if the starting point plus the length of the subsequence is less than the length of the time series
             if starting_points[i] + m_next < len(self.time_series):
                 instance = self.time_series[starting_points[i]:starting_points[i] + m_next].values
                 sequence_left.add_sequence(
@@ -1650,10 +1657,11 @@ class DRGS(DRFL):
                 if len(routine) > 1 and i < len(routine) - 1:
                     print("\n\t", "-" * 80)
 
-    def plot_hierarchical_results(self, title_fontsize: int = 20,
+    def plot_hierarchical_results(self, title_fontsize: int = 20, show_xticks: bool = True,
                                   xticks_fontsize: int = 20, yticks_fontsize: int = 20,
                                   labels_fontsize: int = 20, figsize: tuple[int, int] = (30, 10),
-                                  text_fontsize: int = 20, linewidth_bars: Union[int, float] = 1.5,
+                                  coloured_text_fontsize: int = 20, text_fontsize: int = 15,
+                                  linewidth_bars: Union[int, float] = 1.5,
                                   xlim: Optional[tuple[int, int]] = None,
                                   save_dir: Optional[str] = None):
 
@@ -1666,11 +1674,13 @@ class DRGS(DRFL):
 
         Parameters:
             * title_fontsize: `int` (default is 20). Size of the title plot.
+            * show_xticks: `bool` (default is True). Whether to show the xticks or not.
             * xticks_fontsize: `int` (default is 20). Size of the xticks.
             * yticks_fontsize: `int (default is 20)`. Size of the yticks.
             * labels_fontsize: `int` (default is 20). Size of the labels.
             * figsize: `tuple[int, int]` (default is (30, 10)). Size of the figure.
-            * text_fontsize: `int` (default is 20). Size of the text.
+            * coloured_text_fontsize: `int` (default is 20). Size of the coloured text.
+            * text_fontsize: `int` (default is 15). Size of the text.
             * linewidth_bars: `int` | `float` (default is 1.5). Width of the bars in the plot.
             * xlim: `tuple[int, int]` (default is None). Limit of the x-axis with starting points.
             * save_dir: `str` (default is None). Directory to save the plot.
@@ -1724,10 +1734,18 @@ class DRGS(DRFL):
                         for k in range(cluster.length_cluster_subsequences):
                             if sp + k <= xlim[1]:
                                 plt.text(x=sp + k - 0.05, y=self.time_series[sp + k] - 0.8,
-                                         s=f"{self.time_series[sp + k]}", fontsize=text_fontsize,
+                                         s=f"{self.time_series[sp + k]}", fontsize=coloured_text_fontsize,
                                          backgroundcolor="white", color=base_colors[j])
 
                                 colors[sp + k] = base_colors[j]
+
+                # Annotate the value of each bar that is not coloured
+                for k in range(len(self.time_series)):
+                    # if the bar is not coloured (its value is gray and not an array), annotate the value
+                    if not isinstance(colors[k], np.ndarray):
+                        plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
+                                 s=f"{self.time_series[k]}", fontsize=text_fontsize,
+                                 color="black")
 
                 # Customize the title for each subplot
                 plt.title(f"Hierarchy {length} Routine {j + 1}", fontsize=title_fontsize)
@@ -1736,10 +1754,13 @@ class DRGS(DRFL):
                 plt.bar(np.arange(0, len(self.time_series)), self.time_series.values,
                         color=colors, edgecolor="black", linewidth=linewidth_bars)
 
-                # Set the ticks on the x-axis and y-axis
-                plt.xticks(ticks=np.arange(xlim[0], xlim[1]),
-                           labels=np.arange(xlim[0], xlim[1]),
-                           fontsize=xticks_fontsize)
+                if show_xticks:
+                    # Set the ticks on the x-axis and y-axis
+                    plt.xticks(ticks=np.arange(xlim[0], xlim[1]),
+                               labels=np.arange(xlim[0], xlim[1]),
+                               fontsize=xticks_fontsize)
+                else:
+                    plt.xticks([])
 
                 plt.yticks(fontsize=yticks_fontsize)
 
@@ -1772,4 +1793,5 @@ if __name__ == "__main__":
 
     drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
     drgs.fit(time_series)
-    drgs.plot_hierarchical_results()
+    drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
+                                   show_xticks=False)
