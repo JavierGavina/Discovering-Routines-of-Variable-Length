@@ -6,8 +6,8 @@ import pandas as pd
 
 sys.path.append('..')
 
-from src.structures import Subsequence, Sequence, Cluster, Routines
-from src.DRFL import DRFL
+from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine
+from src.DRFL import DRFL, DRGS
 
 
 class TestSubsequence(unittest.TestCase):
@@ -313,6 +313,47 @@ class TestSequence(unittest.TestCase):
         self.sequence.add_sequence(self.subsequence1)
         self.sequence.add_sequence(self.subsequence2)
         self.assertTrue(np.array_equal(self.sequence.get_subsequences(), expected_output))
+
+    def test_extract_components(self):
+        """
+        Extract the components of a sequence
+
+        This method should return a tuple of an array, a list of dates and a list of integers corresponding with the subsequences
+
+        The sequence is:
+            Sequence(
+                list_sequences=[
+                    Subsequence(instance=[1, 2, 3, 4], date=2021-1-1, starting_point=0),
+
+                    Subsequence(instance=[5, 6, 7, 8], date=2021-1-2, starting_point=4)
+                ]
+            )
+
+        The expected output is:
+            If flatten = True:
+                * (np.array([1, 2, 3, 4, 5, 6, 7, 8]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+            If flatten = False:
+                *  (np.array([[1, 2, 3, 4], [5, 6, 7, 8]]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+        """
+
+        self.sequence.add_sequence(self.subsequence1)
+        self.sequence.add_sequence(self.subsequence2)
+
+        expected_output = (np.array([[1, 2, 3, 4], [5, 6, 7, 8]]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+        expected_output_flatten = (np.array([1, 2, 3, 4, 5, 6, 7, 8]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+
+        flatten_subseq, flatten_dates, flatten_starting_points = self.sequence.extract_components(flatten=True)
+        subseq, dates, starting_points = self.sequence.extract_components(flatten=False)
+
+        # CASE 1: Flatten = True
+        self.assertTrue(np.array_equal(flatten_subseq, expected_output_flatten[0]))
+        self.assertEqual(flatten_dates, expected_output_flatten[1])
+        self.assertTrue(np.array_equal(flatten_starting_points, expected_output_flatten[2]))
+
+        # CASE 2: Flatten = False
+        self.assertTrue(np.array_equal(subseq, expected_output[0]))
+        self.assertEqual(dates, expected_output[1])
+        self.assertEqual(starting_points, expected_output[2])
 
     def test_check_distinct_lengths(self):
         """
@@ -759,11 +800,465 @@ class TestRoutines(unittest.TestCase):
         >>>  ...  {'instance': [5, 6, 7, 8], 'date': datetime.date(2021, 1, 2), 'starting_point': 4}
         >>> ] }]
         """
+
         collection = self.routines.to_collection()
         expected_collection = [{'centroid': np.array([3, 4, 5, 6]), 'instances': self.sequence.get_subsequences()}]
         self.assertEqual(np.array_equal(collection[0]["centroid"], expected_collection[0]["centroid"]), True)
         self.assertTrue(
             np.array_equal(collection[0]["instances"][0]["instance"], expected_collection[0]["instances"][0]))
+
+
+class TestHierarchyRoutine(unittest.TestCase):
+    def setUp(self):
+        """
+        Set up the HierarchyRoutine object and the routines for the tests
+
+        The routines are:
+
+        Routine1:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [2, 3, 4],
+                    - instances = [[1, 2, 3], [4, 5, 6]]
+                    - starting_points = [0, 3]
+                    - dates = [2021-1-1, 2021-1-2]
+                ),
+                Cluster(
+                    - centroid = [5, 6, 7],
+                    - instances = [[7, 8, 9]]
+                    - starting_points = [6]
+                    - dates = [2021-1-3]
+                )])
+
+        Routine2:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [3, 4, 5, 6],
+                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
+                    - starting_points = [0, 4]
+                    - dates = [2021-1-1, 2021-1-2]
+                ),
+                Cluster(
+                    - centroid = [7, 8, 9, 10],
+                    - instances = [[9, 10, 11, 12]]
+                    - starting_points = [8]
+                    - dates = [2021-1-3]
+                )])
+
+        Routine3:
+
+        Routines(
+            list_routines=[
+                Cluster(
+                    - centroid = [4, 5, 6, 7, 8],
+                    - instances = [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]]
+                    - starting_points = [0, 5]
+                    - dates = [2021-1-1, 2021-1-2]
+                ),
+                Cluster(
+                    - centroid = [9, 10, 11, 12, 13],
+                    - instances = [[11, 12, 13, 14, 15]]
+                    - starting_points = [10]
+                    - dates = [2021-1-3]
+                )])
+        """
+
+        subseq1_3 = Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)
+        subseq2_3 = Subsequence(np.array([4, 5, 6]), datetime.date(2021, 1, 2), 3)
+        subseq3_3 = Subsequence(np.array([7, 8, 9]), datetime.date(2021, 1, 3), 6)
+
+        subseq1_4 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+        subseq2_4 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+        subseq3_4 = Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 8)
+
+        subseq1_5 = Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 1), 0)
+        subseq2_5 = Subsequence(np.array([6, 7, 8, 9, 10]), datetime.date(2021, 1, 2), 5)
+        subseq3_5 = Subsequence(np.array([11, 12, 13, 14, 15]), datetime.date(2021, 1, 3), 10)
+
+        sequence1_3 = Sequence(subseq1_3)
+        sequence1_3.add_sequence(subseq2_3)
+
+        sequence2_3 = Sequence(subseq3_3)
+
+        sequence1_4 = Sequence(subseq1_4)
+        sequence1_4.add_sequence(subseq2_4)
+
+        sequence2_4 = Sequence(subseq3_4)
+
+        sequence1_5 = Sequence(subseq1_5)
+        sequence1_5.add_sequence(subseq2_5)
+
+        sequence2_5 = Sequence(subseq3_5)
+
+        self.cluster1_3 = Cluster(np.array([2, 3, 4]), sequence1_3)
+        self.cluster2_3 = Cluster(np.array([5, 6, 7]), sequence2_3)
+
+        self.cluster1_4 = Cluster(np.array([3, 4, 5, 6]), sequence1_4)
+        self.cluster2_4 = Cluster(np.array([7, 8, 9, 10]), sequence2_4)
+
+        self.cluster1_5 = Cluster(np.array([4, 5, 6, 7, 8]), sequence1_5)
+        self.cluster2_5 = Cluster(np.array([9, 10, 11, 12, 13]), sequence2_5)
+
+        self.routines1 = Routines(self.cluster1_3)
+        self.routines1.add_routine(self.cluster2_3)
+
+        self.routines2 = Routines(self.cluster1_4)
+        self.routines2.add_routine(self.cluster2_4)
+
+        self.routines3 = Routines(self.cluster1_5)
+        self.routines3.add_routine(self.cluster2_5)
+
+        self.hierarchy_routine = HierarchyRoutine()
+
+    def test_init(self):
+        """
+        Test the __init__ method of the HierarchyRoutine class
+        """
+
+        self.assertEqual(len(self.hierarchy_routine), 0)
+
+    def test_setitem(self):
+        """
+        Test the __setitem__ method of the HierarchyRoutine class
+
+        The method should add on the key (hierarchy) the value (routines)
+
+        The routines are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected hierarchy is:
+            * {3: Routine1, 4: Routine2, 5: Routine3}
+
+        Raises:
+            TypeError: if the hierarchy is not an integer or the routine is not an instance of Routines
+            ValueError: if the routine is empty or the hierarchy is not the same as the routine hierarchy
+        """
+
+        self.hierarchy_routine[3] = self.routines1
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy[0], 3)
+
+        self.hierarchy_routine[4] = self.routines2
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy[1], 4)
+
+        self.hierarchy_routine[5] = self.routines3
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy[2], 5)
+
+        # Case 1: TypeError
+        with self.assertRaises(TypeError):
+            self.hierarchy_routine["string"] = self.routines1
+
+        with self.assertRaises(TypeError):
+            self.hierarchy_routine[6] = "string"
+
+        # Case 2: ValueError: routine is empty
+        with self.assertRaises(ValueError):
+            self.hierarchy_routine[6] = Routines()
+
+        # Case 3: ValueError: hierarchy is not the same as the routine hierarchy
+        with self.assertRaises(ValueError):
+            self.hierarchy_routine[6] = self.routines1
+
+    def test_getitem(self):
+        """
+        Test the __getitem__ method of the HierarchyRoutine class
+
+        The method should return the routines of the hierarchy
+
+        The routines are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        Raises:
+            TypeError: if the hierarchy is not an integer
+            KeyError: if the hierarchy is not found in the routines
+        """
+
+        self.hierarchy_routine[3] = self.routines1
+        self.hierarchy_routine[4] = self.routines2
+        self.hierarchy_routine[5] = self.routines3
+
+        # Returns the routine
+        self.assertEqual(self.hierarchy_routine[3], self.routines1)
+        self.assertEqual(self.hierarchy_routine[4], self.routines2)
+        self.assertEqual(self.hierarchy_routine[5], self.routines3)
+
+        # Case 1: TypeError
+        with self.assertRaises(TypeError):
+            self.hierarchy_routine["string"]
+
+        # Case 2: KeyError
+        with self.assertRaises(KeyError):
+            self.hierarchy_routine[6]
+
+    def test_len(self):
+        """
+        Test the __len__ method of the HierarchyRoutine class
+
+        The method should return the number of routines in the hierarchy
+
+        The routines are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected outputs are:
+            * 0 (no routines added)
+            * 1 (1 routines added)
+            * 2 (2 routines added)
+            * 3 (3 routines added)
+        """
+
+        self.assertEqual(len(self.hierarchy_routine), 0)
+
+        self.hierarchy_routine[3] = self.routines1
+        self.assertEqual(len(self.hierarchy_routine), 1)
+
+        self.hierarchy_routine[4] = self.routines2
+        self.assertEqual(len(self.hierarchy_routine), 2)
+
+        self.hierarchy_routine[5] = self.routines3
+        self.assertEqual(len(self.hierarchy_routine), 3)
+
+    def test_contains(self):
+        """
+        Test the __contains__ method of the HierarchyRoutine class
+
+        This method should check if the routine exists in the hierarchical routines
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+
+        The routine not added in the hierarchy is:
+            routine3: hierarchy=5
+
+        The expected outputs are:
+            * True (routine1 exists)
+            * True (routine2 exists)
+            * False (routine3 does not exist)
+
+        Raises:
+            TypeError: if the routine is not an instance of Routines
+        """
+
+        self.hierarchy_routine[3] = self.routines1
+        self.hierarchy_routine[4] = self.routines2
+
+        # Case 1: True
+        self.assertTrue(self.routines1 in self.hierarchy_routine)
+
+        # Case 2: True
+        self.assertTrue(self.routines2 in self.hierarchy_routine)
+
+        # Case 3: False
+        self.assertFalse(self.routines3 in self.hierarchy_routine)
+
+        # Case 4: TypeError
+        with self.assertRaises(TypeError):
+            "string" in self.hierarchy_routine
+
+    def test_add_routine(self):
+        """
+        Test the add_routine method of the HierarchyRoutine class
+
+        This method should add a routine to the HierarchyRoutine object.
+        If the key (hierarchy) already exists, the routine is updated.
+        Otherwise, the routine is added to the hierarchy.
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+
+        The routine to add is:
+            routine3: hierarchy=5
+
+        The routine to update the routine1 is:
+        Routine(
+            list_clusters=[
+                Cluster(
+                    - centroid = [15, 16, 17]
+                    - instances = [[13, 14, 15], [16, 17, 18]]
+                    - starting_points = [12, 15]
+                    - dates = [2021-1-4, 2021-1-5]
+                ),
+                Cluster(
+                    - centroid = [18, 19, 20]
+                    - instances = [[19, 20, 21]]
+                    - starting_points = [18]
+                    - dates = [2021-1-6]
+                )])
+            ]
+        )
+
+        Raises:
+            TypeError: if the routine is not an instance of Routines
+            ValueError: if the routine is empty
+        """
+
+        # Creating the routine to update the routine of hierarchy 3
+        routine_to_update = Routines()
+        subseq1 = Subsequence(np.array([13, 14, 15]), datetime.date(2021, 1, 4), 12)
+        subseq2 = Subsequence(np.array([16, 17, 18]), datetime.date(2021, 1, 5), 15)
+        subseq3 = Subsequence(np.array([19, 20, 21]), datetime.date(2021, 1, 6), 18)
+        sequence = Sequence(subseq1)
+        sequence.add_sequence(subseq2)
+        sequence2 = Sequence(subseq3)
+        cluster1 = Cluster(np.array([15, 16, 17]), sequence)
+        cluster2 = Cluster(np.array([18, 19, 20]), sequence2)
+        routine_to_update.add_routine(cluster1)
+        routine_to_update.add_routine(cluster2)
+
+        # Case 1: Add a new routine
+        self.hierarchy_routine.add_routine(self.routines1)
+
+        # Check if the routine was added with the correct hierarchy
+        self.assertEqual(self.hierarchy_routine[3], self.routines1)
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy, [3])
+
+        # Case 2: Add a new routine
+        self.hierarchy_routine.add_routine(self.routines2)
+
+        # Check if the routine was added with the correct hierarchy
+        self.assertEqual(self.hierarchy_routine[4], self.routines2)
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy, [3, 4])
+
+        # Case 3: Add a new routine
+        self.hierarchy_routine.add_routine(self.routines3)
+
+        # Check if the routine was added with the correct hierarchy
+        self.assertEqual(self.hierarchy_routine[5], self.routines3)
+        self.assertEqual(self.hierarchy_routine._HierarchyRoutine__hierarchy, [3, 4, 5])
+
+        # Case 4: Update the routine of hierarchy 3
+        self.hierarchy_routine.add_routine(routine_to_update)
+
+        # Check if the routine was updated with the correct hierarchy
+        self.assertEqual(self.hierarchy_routine[3], routine_to_update)
+
+        # Case 5: TypeError: routine is not an instance of Routines
+        with self.assertRaises(TypeError):
+            self.hierarchy_routine.add_routine("string")
+
+        # Case 6: ValueError: routine is empty
+        with self.assertRaises(ValueError):
+            self.hierarchy_routine.add_routine(Routines())
+
+    def test_keys(self):
+        """
+        Test the keys property of the HierarchyRoutine class
+
+        This property is a getter that returns the hierarchy of the routines as list of integers
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected output is:
+            * [3, 4, 5]
+        """
+
+        self.hierarchy_routine.add_routine(self.routines1)
+        self.hierarchy_routine.add_routine(self.routines2)
+        self.hierarchy_routine.add_routine(self.routines3)
+
+        self.assertEqual(self.hierarchy_routine.keys, [3, 4, 5])
+
+    def test_values(self):
+        """
+        Test the values property of the HierarchyRoutine class
+
+        This property is a getter that returns the routines as list of Routines
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected output is:
+            * [Routine1, Routine2, Routine3]
+        """
+
+        self.hierarchy_routine.add_routine(self.routines1)
+        self.hierarchy_routine.add_routine(self.routines2)
+        self.hierarchy_routine.add_routine(self.routines3)
+
+        # Check if the values are correct
+        self.assertEqual(self.hierarchy_routine.values, [self.routines1, self.routines2, self.routines3])
+
+    def test_items(self):
+        """
+        Test the items property of the HierarchyRoutine class.
+
+        This method should return an iterator of each tuple (hierarchy, routine) in the HierarchyRoutine object.
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected output is:
+            * [(3, Routine1), (4, Routine2), (5, Routine3)]
+        """
+
+        self.hierarchy_routine.add_routine(self.routines1)
+        self.hierarchy_routine.add_routine(self.routines2)
+        self.hierarchy_routine.add_routine(self.routines3)
+
+        # Check if the items are correct
+        for key, value in self.hierarchy_routine.items:
+            self.assertEqual(self.hierarchy_routine[key], value)
+
+    def test_to_dictionary(self):
+        """
+        Test the to_dictionary method of the HierarchyRoutine class
+
+        The method should return the routines in a dictionary
+
+        The routines added in the hierarchy are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+            routine3: hierarchy=5
+
+        The expected output is:
+            * {3: Routine1, 4: Routine2, 5: Routine3}
+        """
+
+        self.hierarchy_routine.add_routine(self.routines1)
+
+        expected_output = {3: [{'centroid': np.array([2, 3, 4]),
+                                'instances': [{'instance': np.array([1, 2, 3]), 'date': datetime.date(2021, 1, 1),
+                                               'starting_point': 0},
+                                              {'instance': np.array([4, 5, 6]), 'date': datetime.date(2021, 1, 2),
+                                               'starting_point': 3}]},
+                               {'centroid': np.array([5, 6, 7]),
+                                'instances': [{'instance': np.array([7, 8, 9]), 'date': datetime.date(2021, 1, 3),
+                                               'starting_point': 6}]}]
+                           }
+
+        # Check if the dictionary is correct
+        estimated_output = self.hierarchy_routine.to_dictionary()
+
+        #
+        for key, value in estimated_output.items():
+            for i, cluster in enumerate(value):
+                # Check if the centroids match
+                self.assertTrue(np.array_equal(cluster["centroid"], expected_output[key][i]["centroid"]))
+
+                # Check if the instances match
+                for j, instance in enumerate(cluster["instances"]):
+                    self.assertTrue(
+                        np.array_equal(instance["instance"], expected_output[key][i]["instances"][j]["instance"]))
+                    self.assertTrue(np.array_equal(instance["date"], expected_output[key][i]["instances"][j]["date"]))
+                    self.assertTrue(np.array_equal(instance["starting_point"],
+                                                   expected_output[key][i]["instances"][j]["starting_point"]))
 
 
 class TestDRFL(unittest.TestCase):
@@ -986,6 +1481,184 @@ class TestDRFL(unittest.TestCase):
 
         self.assertEqual(routines_obtained_1, expected_routine)
         self.assertNotEquals(routines_obtained_2, expected_routine)
+
+
+class TestDRGS(unittest.TestCase):
+    def setUp(self):
+        """
+        Set up the DRGS object and the time series for the tests
+
+        The time series is:
+        [1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1]
+        """
+        # Setup for a example sequence
+        subsequence = Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 1), 0)
+        subsequence2 = Subsequence(np.array([2, 3, 6]), datetime.date(2024, 1, 7), 6)
+        subsequence3 = Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 12), 11)
+
+        self.sequence = Sequence(subsequence)
+        self.sequence.add_sequence(subsequence2)
+        self.sequence.add_sequence(subsequence3)
+
+        # Setup for the input time series
+        self.time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+        self.time_series.index = pd.date_range(start="2024-01-01", periods=len(self.time_series))
+
+        # Setup for the DRGS object
+        self.length_range = (3, 8)
+        self.R = 2
+        self.C = 3
+        self.G = 4
+        self.epsilon = 1
+        self.L = 3
+        self.drgs = DRGS(length_range=self.length_range, R=self.R, C=self.C, G=self.G, epsilon=self.epsilon, L=self.L)
+
+        self.drgs_fitted = DRGS(length_range=self.length_range, R=self.R, C=self.C, G=self.G, epsilon=self.epsilon,
+                                L=self.L)
+        self.drgs_fitted.fit(self.time_series)
+
+    def test__union_routines(self):
+        """
+        Test the __union_routines method of the DRGS class
+
+        The method should return the union of the routines appending the clusters of the second routine to the first routine
+
+        The routines are:
+
+        left:
+        Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid=np.array([1, 2, 3])
+                        - instances=[[1, 2, 3]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        )
+                ])
+
+        right:
+        Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid=np.array([3, 2, 1])
+                        - instances=[[3, 2, 1]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        )
+                ])
+
+        The expected output is:
+        Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid=np.array([1, 2, 3])
+                        - instances=[[1, 2, 3]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        ),
+                    Cluster(
+                        - centroid=np.array([3, 2, 1])
+                        - instances=[[3, 2, 1]]
+                        - date=datetime.date(2024, 1, 1),
+                        - starting_point=[0]
+                        )
+                ])
+
+        Raises:
+            TypeError: if the parameter is not an instance of Routines
+            ValueError: if the routine is if the hierarchy of the routines is not the same
+        """
+        # Create the routines
+        left_cluster = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(
+            Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+        right_cluster = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(
+            Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0)))
+        other_hierarchy = Cluster(centroid=np.array([1, 2, 3, 4]), instances=Sequence(
+            Subsequence(np.array([1, 2, 3, 4]), date=datetime.date(2024, 1, 1), starting_point=0)))
+
+        # expected join routine
+        join = Routines(left_cluster)
+        join.add_routine(right_cluster)
+
+        # Input routines
+        left = Routines(left_cluster)
+        right = Routines(right_cluster)
+        other_hierarchy_routine = Routines(other_hierarchy)
+
+        # Case 0: union correct
+        self.assertEqual(self.drgs._DRGS__union_routines(left, right), join)
+
+        # Case 1: TypeError
+        with self.assertRaises(TypeError):
+            self.drgs._DRGS__union_routines(left, "string")
+
+        # Case 2: left is an empty routine
+        self.assertEqual(self.drgs._DRGS__union_routines(Routines(), right), right)
+
+        # Case 3: right is an empty routine
+        self.assertEqual(self.drgs._DRGS__union_routines(left, Routines()), left)
+
+        # Case 4: ValueError
+        with self.assertRaises(ValueError):
+            self.drgs._DRGS__union_routines(left, other_hierarchy_routine)
+
+    def test__grow_from_left(self):
+        """
+        Test the __grow_from_left method of the DRGS class
+
+        This method should grow a sequence from the left side of the time series taking as input a Sequence
+
+        The sequence is:
+        Sequence(
+            list_subsequences=[
+                Subsequence(
+                    - instance = [1, 3, 6]
+                    - date = 2024-1-1
+                    - starting_point = 0
+                ),
+                Subsequence(
+                    - instance = [2, 3, 6]
+                    - date = 2024-1-7
+                    - starting_point = 6
+                ),
+                Subsequence(
+                    - instance = [1, 3, 6]
+                    - date = 2024-1-12
+                    - starting_point = 11
+                )
+            ]
+        )
+
+        The expected output is:
+
+        left:
+        Sequence(
+            list_sequences=[
+                Subsequence(
+                    - instance = [1, 3, 6, 4]
+                    - date = 2024-1-1
+                    - starting_point = 0
+                ),
+                Subsequence(
+                    - instance = [2, 3, 6, 4]
+                    - date = 2024-1-7
+                    - starting_point = 6
+                ),
+                Subsequence(
+                    - instance = [1, 3, 6, 4]
+                    - date = 2024-1-12
+                    - starting_point = 11
+                )
+            ]
+        """
+
+        # Expected output
+        expected_output = Sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 1), 0))
+        expected_output.add_sequence(Subsequence(np.array([2, 3, 6, 4]), datetime.date(2024, 1, 7), 6))
+        expected_output.add_sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 12), 11))
+
+        # Check if the sequence is the expected
+        self.assertEqual(self.drgs_fitted._DRGS__grow_from_left(self.sequence), expected_output)
 
 
 if __name__ == '__main__':

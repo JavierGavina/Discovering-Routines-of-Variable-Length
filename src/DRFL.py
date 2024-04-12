@@ -89,14 +89,15 @@ class DRFL:
 
         >>> time_series = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-        >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+        >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
         >>> drfl.fit(time_series)
         >>> drfl.show_results()
         >>> drfl.plot_results()
 
     """
 
-    def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float, L: Union[float, int] = 0):
+    def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float,
+                 L: Union[float, int] = 0):
         """
         Initialize the DRFL algorithm.
 
@@ -109,8 +110,12 @@ class DRFL:
             * L: `float` or `int`. inverse magnitude threshold (default is 0).
 
         Examples:
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
         """
+
+        # Check the validity of the parameters
+        params = locals()
+        self._check_params(**params)
 
         self._m: int = m
         self._R: int | float = R
@@ -124,6 +129,60 @@ class DRFL:
 
         self.__already_fitted: bool = False
         self.time_series: pd.Series = None
+
+    @staticmethod
+    def _check_params(**kwargs):
+        """
+        Check the validity of the parameters for the DRGS algorithm.
+
+        Parameters:
+            * kwargs: `dict`. Dictionary containing the parameters for the DRGS algorithm.
+
+        Raises:
+            TypeError: If any parameter is not of the correct type.
+            ValueError: If any parameter has an invalid value.
+        """
+
+        # Check the validity of the parameters
+        for key, value in kwargs.items():
+            # Check if length range is a tuple of two integers
+            if key == "length_range":
+                if not isinstance(value, tuple):
+                    raise TypeError("length_range must be a tuple")
+
+                if len(value) != 2:
+                    raise ValueError("length_range must be a tuple with two values")
+
+                if not all(isinstance(v, int) for v in value):
+                    raise TypeError("length_range values must be integers")
+
+                # Check if the values are valid
+                if value[0] < 2 or value[1] < value[0]:
+                    raise ValueError("Invalid length_range values")
+
+            # Check if the distance threshold, magnitude and inverse magnitude are integer or a float
+            if key in ["R", "G", "L"]:
+                if not isinstance(value, (int, float)):
+                    raise TypeError(f"{key} must be an integer or a float")
+
+                if value < 0:
+                    raise ValueError(f"{key} must be greater or equal than 0")
+
+            # Check if the frequency threshold is an integer greater than 1
+            if key == "C":
+                if not isinstance(value, int):
+                    raise TypeError("C must be an integer")
+
+                if value < 1:
+                    raise ValueError("C must be greater or equal than 1")
+
+            # Check if the epsilon is a float between 0 and 1
+            if key == "epsilon":
+                if not isinstance(value, (int, float)):
+                    raise TypeError("epsilon must be a float")
+
+                if value < 0 or value > 1:
+                    raise ValueError("epsilon must be between 0 and 1")
 
     @staticmethod
     def _check_type_time_series(time_series: pd.Series) -> None:
@@ -213,7 +272,7 @@ class DRFL:
 
         Examples:
             >>> distances = [1, 2, 3, 4, 5]
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(_m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__minimum_distance_index(distances)
             0
         """
@@ -246,7 +305,7 @@ class DRFL:
             >>> import numpy as np
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__is_match(S1, S2, 2)
             True
 
@@ -295,13 +354,13 @@ class DRFL:
             >>> import numpy as np
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=1.0)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
             >>> drfl.__is_overlap(S1, S2)
             True
 
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=4)
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=1.0)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
             >>> drfl.__is_overlap(S1, S2)
             False
         """
@@ -335,7 +394,7 @@ class DRFL:
             `float`. The inverse gaussian distance between the target and estimated number of instances.
 
         Examples:
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__inverse_gaussian_distance(N_target=3, N_estimated=3, sigma=2)
             0
         """
@@ -408,7 +467,7 @@ class DRFL:
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 2, 3, 4, 5])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl._extract_subsequence(time_series, 0) # This property cannot be accessed from outside the class
             >>> print(drfl.__sequence)
             Sequence(
@@ -486,7 +545,7 @@ class DRFL:
             >>> S1 = Subsequence(instance=np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> cluster = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__not_trivial_match(S1, cluster, 0, 2)
             False
             >>> drfl.__not_trivial_match(S1, cluster, 1, 2)
@@ -540,7 +599,7 @@ class DRFL:
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=1)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1)
             >>> drfl.fit(time_series)
             >>> routines = drfl._subgroup()
             >>> print(routines)
@@ -568,7 +627,6 @@ class DRFL:
         """
 
         routines = Routines()
-        print(self._L)
 
         # Iterate through all the subsequences
         for i in range(len(sequence)):
@@ -642,7 +700,7 @@ class DRFL:
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=1.0)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
             >>> drfl.__overlapping_test(cluster1, cluster2, 0.5)
             (True, False)
         """
@@ -697,7 +755,7 @@ class DRFL:
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=4)
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=1.0)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=1.0)
             >>> drfl.__obtain_keep_indices(1)
             [0, 1]
 
@@ -705,7 +763,7 @@ class DRFL:
             >>> S2 = Subsequence(instance=np.array([2, 3, 4]), date=datetime.date(2024, 1, 2), starting_point=1)
             >>> cluster1 = Cluster(centroid=S1, instances=Sequence(subsequence=S1))
             >>> cluster2 = Cluster(centroid=S2, instances=Sequence(subsequence=S2))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.__obtain_keep_indices(0.5)
             [1]
         """
@@ -745,7 +803,7 @@ class DRFL:
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drfl = DRFL(_m=3, _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drfl = DRFL(m=3, R=2, C=3, G=4, epsilon=0.5)
             >>> drfl.fit(time_series)
             >>> print(drfl.routines)
         """
@@ -808,7 +866,7 @@ class DRFL:
             >>> target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drfl = DRFL(_m=3, _R=1, _C=3, _G=4, _epsilon=1)
+            >>> drfl = DRFL(m=3, R=1, C=3, G=4, epsilon=1)
             >>> drfl.fit(time_series)
             >>> dist = drfl.estimate_distance(target_centroids, alpha=0.5, sigma=3)
             >>> print(dist)
@@ -1341,7 +1399,7 @@ class DRGS(DRFL):
         >>> import pandas as pd
         >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
         >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-        >>> drgs = DRGS(length_range=(3, 8), _R=2, _C=3, _G=4, _epsilon=0.5)
+        >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
         >>> drgs.fit(time_series)
         >>> hierarchical_routines = drgs.get_results()
 
@@ -1351,16 +1409,36 @@ class DRGS(DRFL):
 
 
     """
+
     def __init__(self, length_range: tuple[int, int], R: Union[float, int], C: int, G: Union[float, int],
                  epsilon: float, L: Union[int, float] = 0) -> None:
         """
         Initialize the DRGS object with the parameters for the DRGS algorithm
+
+        Parameters:
+            * length_range: `tuple[int, int]`. tuple that indicates the range from the minimum length of subsequences to the maximum
+            * R: `float | int`. distance threshold
+            * C: `int`. frequency threshold
+            * G: `float | int`. magnitude threshold
+            * epsilon: `float`. overlap parameter
+            * L: `int | float`. length of the subsequence
+
+        Raises:
+
         """
+        # Check the validity of the parameters
+        params = locals()
+        super()._check_params(**params)
+
+        # Set the attributes of the DRFL object by default
         super().__init__(m=length_range[0], R=R, C=C, G=G, epsilon=epsilon, L=L)
+
+        # Set the attributes of the DRGS object
         self.__length_range = length_range
         self.__hierarchical_routines = HierarchyRoutine()
         self.time_series: pd.Series
 
+        # Set the already_fitted attribute to False
         self.__already_fitted = False
 
     @staticmethod
@@ -1372,8 +1450,8 @@ class DRGS(DRFL):
             `Routines`. The union of the two routines in one routine with the clusters combined.
 
         Examples:
-            >>> left = Routines(Cluster(centroid=np.array([1, 2, 3]), sequences=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> right = Routines(Cluster(centroid=np.array([3, 2, 1]), sequences=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> left = Routines(Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0))))
+            >>> right = Routines(Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))))
             >>> union = DRGS.__union_routines(left, right)
             >>> print(union)
             Routines(
@@ -1396,22 +1474,54 @@ class DRGS(DRFL):
 
         return left + right
 
-    @staticmethod
-    def __extract_components(sequence: Sequence, inverse: bool = False) -> tuple[np.ndarray, list[datetime.date], list[int]]:
-        subsequence = sequence.get_subsequences(to_array=True).flatten()
-        dates = sequence.get_dates()
-        starting_points = sequence.get_starting_points()
-
-        if inverse:
-            subsequence = np.flip(subsequence)
-            dates = np.flip(dates)
-            starting_points = np.flip(starting_points)
-
-        return subsequence, dates, starting_points
-
     def __grow_from_left(self, sequence: Sequence) -> Sequence:
+        """
+        Grow the sequence from the left side.
+        This method detects the length of subsequences and grows them from the left to right side.
+
+        Parameters:
+            * sequence: `Sequence`. The sequence to grow from the left side.
+
+        Returns:
+            `Sequence`. The sequence grown from the left side.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+
+            >>> sequence = Sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([2, 3, 6, 4]), datetime.date(2024, 1, 7), 6))
+            >>> sequence.add_sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 12), 11))
+
+            >>> sequence_left = drgs._DRGS__grow_from_left(sequence)
+            >>> print(sequence_left)
+            Sequence(
+            list_sequences=[
+                Subsequence(
+                    - instance = [1, 3, 6, 4]
+                    - date = 2024-1-1
+                    - starting_point = 0
+                ),
+                Subsequence(
+                    - instance = [2, 3, 6, 4]
+                    - date = 2024-1-7
+                    - starting_point = 6
+                ),
+                Subsequence(
+                    - instance = [1, 3, 6, 4]
+                    - date = 2024-1-12
+                    - starting_point = 11
+                )
+            ]
+        """
+        # Increment the length of subsequences
         m_next = sequence.length_subsequences + 1
-        subsequence, dates, starting_points = self.__extract_components(sequence)
+
+        # Extract the components from the sequence
+        _, dates, starting_points = sequence.extract_components(flatten=True)
         sequence_left = Sequence()
         for i in range(len(sequence)):
             if starting_points[i] + m_next < len(self.time_series):
@@ -1424,7 +1534,7 @@ class DRGS(DRFL):
 
     def __grow_from_right(self, sequence: Sequence) -> Sequence:
         m_next = sequence.length_subsequences + 1
-        subsequence, dates, starting_points = self.__extract_components(sequence)
+        _, dates, starting_points = sequence.extract_components(flatten=True)
         sequence_right = Sequence()
         for i in range(len(sequence)):
             if starting_points[i] - 1 > 0:
@@ -1501,7 +1611,7 @@ class DRGS(DRFL):
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drgs = DRGS(length_range=(3, 8), _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
             >>> drgs.fit(time_series)
             >>> print(drgs.get_results())
 
@@ -1521,7 +1631,7 @@ class DRGS(DRFL):
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drgs = DRGS(length_range=(3, 8), _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
             >>> drgs.fit(time_series)
             >>> drgs.show_results()
         """
@@ -1572,7 +1682,7 @@ class DRGS(DRFL):
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-            >>> drgs = DRGS(length_range=(3, 8), _R=2, _C=3, _G=4, _epsilon=0.5)
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
             >>> drgs.fit(time_series)
             >>> drgs.plot_hierarchical_results()
         """
@@ -1654,7 +1764,8 @@ class DRGS(DRFL):
 
 if __name__ == "__main__":
     time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
-    time_series = pd.Series([ 1, 1, 1, 1, 5, 6, 9, 7, 5, 2, 1, 1, 1, 2, 5, 6, 9, 7, 4, 1, 1, 6, 6, 9, 7, 6, 1, 1, 1, 1, 1])
+    time_series = pd.Series(
+        [1, 1, 1, 1, 5, 6, 9, 7, 5, 2, 1, 1, 1, 2, 5, 6, 9, 7, 4, 1, 1, 6, 6, 9, 7, 6, 1, 1, 1, 1, 1])
     # repeat the time series 10 times
     # time_series = pd.concat([time_series] * 10)
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
