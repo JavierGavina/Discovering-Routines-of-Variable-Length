@@ -122,8 +122,8 @@ class DRFL:
         self._C: int = C
         self._G: int | float = G
         self._epsilon: float = epsilon
-
         self._L: int | float = L
+
         self.__routines: Routines = Routines()
         self.__sequence: Sequence = Sequence()
 
@@ -148,13 +148,13 @@ class DRFL:
             # Check if length range is a tuple of two integers
             if key == "length_range":
                 if not isinstance(value, tuple):
-                    raise TypeError("length_range must be a tuple")
+                    raise TypeError(f"length_range must be a tuple. Got {type(value).__name__} instead")
 
                 if len(value) != 2:
-                    raise ValueError("length_range must be a tuple with two values")
+                    raise ValueError(f"length_range must be a tuple with two values. Got {len(value)} instead")
 
                 if not all(isinstance(v, int) for v in value):
-                    raise TypeError("length_range values must be integers")
+                    raise TypeError(f"length_range values must be integers. Got {type(value[0]).__name__} instead")
 
                 # Check if the values are valid
                 if value[0] < 2 or value[1] < value[0]:
@@ -163,26 +163,26 @@ class DRFL:
             # Check if the distance threshold, magnitude and inverse magnitude are integer or a float
             if key in ["R", "G", "L"]:
                 if not isinstance(value, (int, float)):
-                    raise TypeError(f"{key} must be an integer or a float")
+                    raise TypeError(f"{key} must be an integer or a float. Got {type(value).__name__} instead")
 
                 if value < 0:
-                    raise ValueError(f"{key} must be greater or equal than 0")
+                    raise ValueError(f"{key} must be greater or equal than 0. Got {value} instead")
 
             # Check if the frequency threshold is an integer greater than 1
             if key == "C":
                 if not isinstance(value, int):
-                    raise TypeError("C must be an integer")
+                    raise TypeError(f"C must be an integer. Got {type(value).__name__} instead")
 
                 if value < 1:
-                    raise ValueError("C must be greater or equal than 1")
+                    raise ValueError(f"C must be greater or equal than 1. Got {value} instead")
 
             # Check if the epsilon is a float between 0 and 1
             if key == "epsilon":
                 if not isinstance(value, (int, float)):
-                    raise TypeError("epsilon must be a float")
+                    raise TypeError(f"epsilon must be an integer or float. Got {type(value).__name__} instead")
 
                 if value < 0 or value > 1:
-                    raise ValueError("epsilon must be between 0 and 1")
+                    raise ValueError(f"epsilon must be between 0 and 1. Got {value} instead")
 
     @staticmethod
     def _check_type_time_series(time_series: pd.Series) -> None:
@@ -225,7 +225,8 @@ class DRFL:
         """
         # Get the arguments of the method and check their validity
         saved_args = locals()
-        integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize", "coloured_text_fontsize", "text_fontsize"]
+        integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize",
+                          "coloured_text_fontsize", "text_fontsize"]
         tuple_params = ["figsize", "xlim"]
 
         # Check the validity of the parameters
@@ -243,6 +244,7 @@ class DRFL:
                         continue
                     raise TypeError(f"{key} must be a tuple of integers.")
 
+            # Check if show_xticks is a boolean
             if key == "show_xticks":
                 if not isinstance(value, bool):
                     raise TypeError(f"{key} must be a boolean. Got {type(value)}")
@@ -1050,30 +1052,24 @@ class DRFL:
         plt.show()
 
 
-class ParallelSearchDRFL:
+class ParallelSearchDRFL(DRFL):
     """
     Class to perform a parallel search of the best parameters for the DRFL algorithm using multithreading.
 
     This class allows the user to search for the best parameters for the DRFL algorithm using a grid search approach.
 
     Parameters:
-        * n_jobs: `int`. The number of parallel jobs to run.
-        * alpha: `int | float`. Rate of penalization.
-        * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
-        * param_grid: `dict`. Dictionary with parameters names (`_m`, `_R`, `_C`, `_G`, `_epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
-
-    Attributes:
     -------
-        * n_jobs: `int`. The number of parallel jobs to run.
-        * alpha: `int | float`. Rate of penalization.
-        * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
-        * param_grid: `dict`. Dictionary with parameters names (`_m`, `_R`, `_C`, `_G`, `_epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
+        * ``n_jobs: int``. The number of parallel jobs to run.
+        * ``alpha: int | float``. Rate of penalization.
+        * ``sigma: int | float``. Sigma parameter for the variance in the inverse Gaussian distance.
+        * ``param_grid: dict``. Dictionary with parameters names **(m, R, C, G, epsilon, L)** as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
 
-    Methods:
+    Public methods:
     -------
-        * fit(time_series: pd.Series, target_centroids: list[list]): Fit the DRFL algorithm to the time series data using multiple sets of parameters in parallel.
-        * best_params(): Get the best parameters found during the search.
-        * cv_results(): Get the results of the search.
+        * ``fit(time_series: pd.Series, target_centroids: list[list])``: Fit the DRFL algorithm to the time series data using multiple sets of parameters in parallel.
+        * ``best_params()``: Get the best parameters found during the search.
+        * ``cv_results()``: Get the results of the search.
 
 
     Examples:
@@ -1082,16 +1078,16 @@ class ParallelSearchDRFL:
         >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
         >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
         >>> param_grid = {
-        ...     "_m": [3],
-        ...     "_R": [1, 2, 3, 4, 5, 6],
-        ...     "_C": [1, 2, 3, 4, 5, 6],
-        ...     "_G": [1, 2, 3, 4, 5, 6],
-        ...     "_epsilon": [0.5, 1],
+        ...     "m": [3],
+        ...     "R": [1, 2, 3, 4, 5, 6],
+        ...     "C": [1, 2, 3, 4, 5, 6],
+        ...     "G": [1, 2, 3, 4, 5, 6],
+        ...     "epsilon": [0.5, 1],
         ... }
         >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
         >>> search.fit(time_series)
         >>> print(search.best_params())
-        >>> {'_m': 3, '_R': 1, '_C': 3, '_G': 4, '_epsilon': 1}
+        >>> {'m': 3, 'R': 1, 'C': 3, 'G': 4, 'epsilon': 1}
     """
 
     def __init__(self, n_jobs: int, alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
@@ -1102,14 +1098,16 @@ class ParallelSearchDRFL:
             * n_jobs: `int`. The number of parallel jobs to run.
             * alpha: `int | float`. Rate of penalization.
             * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
-            * param_grid: `dict`. Dictionary with parameters names (`_m`, `_R`, `_C`, `_G`, `_epsilon`) as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
+            * param_grid: `dict`. Dictionary with parameters names **(m, R, C, G, epsilon, L)** as keys and lists of their values to try, representing the parameters from the DRFL algorithm.
 
         Raises:
             TypeError: If the parameter grid is not a dictionary.
             ValueError: If the parameter grid is empty or if some parameter is not valid or has an invalid value.
         """
+
         # Check the validity of the parameters
-        self.__check_validity_params(alpha, sigma, param_grid)
+        self.__check_param_grid(param_grid)
+        self.__check_distance_params(alpha, sigma)
 
         # Set the attributes
         self.__n_jobs: int = n_jobs
@@ -1121,105 +1119,60 @@ class ParallelSearchDRFL:
         self.__results: list[dict] = []
         self.__fitted: bool = False
 
-    @staticmethod
-    def __check_m_param(m: int):
-        """
-        Check the validity of the _m parameter.
-
-        Parameters:
-            * m: `int`. The _m parameter to check.
-
-        Raises:
-            TypeError: If _m is not an integer.
-            ValueError: If _m is not greater than 1.
-        """
-
-        if not isinstance(m, int):
-            raise TypeError("_m must be an integer")
-
-        if m < 2:
-            raise ValueError("_m must be greater or equal than 2")
-
-    @staticmethod
-    def __check_R_or_G_param(param: list[Union[int, float]]):
-        """
-        Check the validity of the _R parameter.
-
-        Parameters:
-            * _R: `list[int | float]`. The _R parameter to check.
-
-        Raises:
-            TypeError: If _R is not a list.
-            ValueError: If _R is empty or if some value in _R is not greater than one.
-        """
-
-        if not isinstance(param, list):
-            raise TypeError("_R must be a list")
-
-        if len(param) == 0:
-            raise ValueError("_R cannot be empty")
-
-        for value in param:
-            if value < 1:
-                raise ValueError("_R must be greater or equal than 1")
-
-    @staticmethod
-    def __check_C_param(C: list[int]):
-        """
-        Check the validity of the _C parameter.
-
-        Parameters:
-            * C: `list[int]`. The _C parameter to check.
-
-        Raises:
-            TypeError: If _C is not a list.
-            ValueError: If _C is empty or if some value in _C is not greater than one.
-        """
-
-        if not isinstance(C, list):
-            raise TypeError("_C must be a list")
-
-        if len(C) == 0:
-            raise ValueError("_C cannot be empty")
-
-        for value in C:
-            if value < 1 or not isinstance(value, int):
-                raise ValueError("_C must be an integer greater or equal than 1")
-
-    @staticmethod
-    def __check_epsilon_param(epsilon: list[float | int]):
-        """
-        Check the validity of the _epsilon parameter.
-
-        Parameters:
-            * epsilon: `list[float | int]`. The _epsilon parameter to check.
-
-        Raises:
-            TypeError: If _epsilon is not a list.
-            ValueError: If _epsilon is empty or if some value in _epsilon is not between 0 and 1.
-        """
-
-        if not isinstance(epsilon, list):
-            raise TypeError("_epsilon must be a list")
-
-        if len(epsilon) == 0:
-            raise ValueError("_epsilon cannot be empty")
-
-        for value in epsilon:
-            if value < 0 or value > 1:
-                raise ValueError("_epsilon must be between 0 and 1")
-
-    def __check_validity_params(self, alpha: Union[int, float], sigma: Union[int, float], param_grid: dict):
+    def __check_param_grid(self, param_grid: dict):
         """
         Check the validity of the parameter grid.
 
         Parameters:
-            * param_grid: `dict`. The parameter grid to check.
+            * param_grid: `dict`. Dictionary with parameters names as keys and lists of their values to try.
 
         Raises:
             TypeError: If the parameter grid is not a dictionary.
-            ValueError: If some parameter is not valid or has an invalid value.
+            ValueError: If the parameter grid is empty or if some parameter is not valid.
         """
+
+        # Check if the parameter grid is a dictionary
+        if not isinstance(param_grid, dict):
+            raise TypeError("param_grid must be a dictionary")
+
+        # Check if the parameter grid is not empty
+        if not param_grid:
+            raise ValueError("param_grid cannot be empty")
+
+        # Check if the parameter grid has valid parameters
+        for param in param_grid:
+            if param not in ["m", "R", "C", "G", "epsilon", "L"]:
+                raise ValueError(f"Invalid parameter in param_grid. Got {param}")
+
+            if not isinstance(param_grid[param], list) and param != "m":
+                raise TypeError(f"Values for {param} must be a list. Got {type(param_grid[param]).__name__}")
+
+        param_values = {"R": param_grid["R"][0], "C": param_grid["C"][0],
+                        "G": param_grid["G"][0], "epsilon": param_grid["epsilon"][0],
+                        "L": param_grid["L"][0]}
+        # Check if each list of parameters values are valid
+        super()._check_params(**param_values)
+
+    @staticmethod
+    def __check_distance_params(alpha: Union[int, float], sigma: Union[int, float]):
+        """
+        Check the validity of the parameter grid.
+
+        Parameters:
+            * alpha: `int | float`. Rate of penalization.
+            * sigma: `int | float`. Sigma parameter for the variance in the inverse Gaussian distance.
+
+        Raises:
+            TypeError: If the parameters are not integers or floats.
+            ValueError: If some parameter has an invalid value.
+        """
+
+        # Check if alpha and sigma are integers or floats
+        if not isinstance(alpha, (int, float)):
+            raise TypeError(f"alpha must be an integer or a float. Got {type(alpha).__name__}")
+
+        if not isinstance(sigma, (int, float)):
+            raise TypeError(f"sigma must be an integer or a float. Got {type(sigma).__name__}")
 
         # Check if alpha and sigma are valid
         if alpha < 0 or alpha > 1:
@@ -1228,33 +1181,7 @@ class ParallelSearchDRFL:
         if sigma < 1:
             raise ValueError("sigma must be greater or equal than 1")
 
-        # Check if the parameter grid is a dictionary or if it is empty
-        if not isinstance(param_grid, dict):
-            raise TypeError("param_grid must be a dictionary")
-
-        if not param_grid:
-            raise ValueError("param_grid cannot be empty")
-
-        # Check if the parameters are valid
-        valid_params = ['_m', '_R', '_C', '_G', '_epsilon']
-        for key in param_grid.keys():
-            if key not in valid_params:
-                raise ValueError(f"Invalid parameter: {key}. Valid parameters are: {valid_params}")
-
-            if key == "_m":
-                self.__check_m_param(param_grid[key])
-
-            if key == "_R" or key == "_G":
-                self.__check_R_or_G_param(param_grid[key])
-
-            if key == "_C":
-                self.__check_C_param(param_grid[key])
-
-            if key == "_epsilon":
-                self.__check_epsilon_param(param_grid[key])
-
-    @staticmethod
-    def fit_single_instance(params):
+    def fit_single_instance(self, params):
         """
         Fit a single instance of the DRFL algorithm with a given set of parameters.
 
@@ -1265,13 +1192,14 @@ class ParallelSearchDRFL:
             A dictionary containing the parameters used and the results of the DRFL fitting process.
         """
 
-        m, R, C, G, epsilon, alpha, sigma, time_series, target_centroids = params
-        drfl = DRFL(m=m, R=R, C=C, G=G, epsilon=epsilon)
+        m, R, C, G, epsilon, L, alpha, sigma, time_series, target_centroids = params
+        drfl = DRFL(m=m, R=R, C=C, G=G, epsilon=epsilon, L=L)
         drfl.fit(time_series)
         estimated_distance = drfl.estimate_distance(target_centroids, alpha=alpha, sigma=sigma)
-        return {"_m": m, "_R": R, "_C": C, "_G": G, "_epsilon": epsilon, "estimated_distance": estimated_distance}
 
-    def fit(self, time_series: pd.Series, target_centroids: list[list]):
+        return {"m": m, "R": R, "C": C, "G": G, "epsilon": epsilon, "L": L, "estimated_distance": estimated_distance}
+
+    def search_best(self, time_series: pd.Series, target_centroids: list[list]):
         """
         Fit the DRFL algorithm to the time series data using multiple sets of parameters in parallel.
 
@@ -1285,11 +1213,12 @@ class ParallelSearchDRFL:
 
         # Prepare the list with all combinations of parameters to fit the DRFL instances
         all_params = list(product(
-            [self.__param_grid.get('_m', [3])],
-            self.__param_grid.get('_R', [2]),
-            self.__param_grid.get('_C', [3]),
-            self.__param_grid.get('_G', [4]),
-            self.__param_grid.get('_epsilon', [1]),
+            [self.__param_grid.get('m', [3])],
+            self.__param_grid.get('R', [2]),
+            self.__param_grid.get('C', [3]),
+            self.__param_grid.get('G', [4]),
+            self.__param_grid.get('epsilon', [1]),
+            self.__param_grid.get('L', [0]),
             [self.__alpha],
             [self.__sigma],
             [time_series],
@@ -1318,20 +1247,20 @@ class ParallelSearchDRFL:
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
             >>> param_grid = {
-            ...     "_m": [3],
-            ...     "_R": [1, 2, 3, 4, 5, 6],
-            ...     "_C": [1, 2, 3, 4, 5, 6],
-            ...     "_G": [1, 2, 3, 4, 5, 6],
-            ...     "_epsilon": [0.5, 1],
+            ...     "m": [3],
+            ...     "R": [1, 2, 3, 4, 5, 6],
+            ...     "C": [1, 2, 3, 4, 5, 6],
+            ...     "G": [1, 2, 3, 4, 5, 6],
+            ...     "epsilon": [0.5, 1],
             ... }
             >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
             >>> search.fit(time_series)
             >>> print(search.cv_results())
-            ... _m _R  _C  _G  _epsilon  estimated_distance
-            ... 3 1  3  4   1.0     0.0
-            ... 3 1  2  5   1.0     0.0
-            ... 3 2  1  5   1.0     0.0
-            ... 3 2  2  5   1.0     0.0
+            ... m R  C  G  epsilon L  estimated_distance
+            ... 3 1  3  4   1.0    0         0.0
+            ... 3 1  2  5   1.0    0         0.0
+            ... 3 2  1  5   1.0    0         0.0
+            ... 3 2  2  5   1.0    0         0.0
             ...
         """
 
@@ -1358,23 +1287,28 @@ class ParallelSearchDRFL:
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
             >>> param_grid = {
-            ...     "_m": [3],
-            ...     "_R": [1, 2, 3, 4, 5, 6],
-            ...     "_C": [1, 2, 3, 4, 5, 6],
-            ...     "_G": [1, 2, 3, 4, 5, 6],
-            ...     "_epsilon": [0.5, 1],
+            ...     "m": [3],
+            ...     "R": [1, 2, 3, 4, 5, 6],
+            ...     "C": [1, 2, 3, 4, 5, 6],
+            ...     "G": [1, 2, 3, 4, 5, 6],
+            ...     "epsilon": [0.5, 1],
             ... }
             >>> search = ParallelSearchDRFL(n_jobs=2, alpha=0.5, sigma=3, param_grid=param_grid)
             >>> search.fit(time_series)
             >>> print(search.best_params())
-            >>> {'_m': 3, '_R': 1, '_C': 3, '_G': 4, '_epsilon': 1}
+            >>> {'m': 3, 'R': 1, 'C': 3, 'G': 4, 'epsilon': 1, 'L':0}
         """
 
         if not self.__fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
-        results = self.cv_results()
-        return results.iloc[0].to_dict()
+        results = self.cv_results().iloc[0].to_dict()
+
+        # Convert the m, C values to integers
+        results["m"] = int(results["m"])
+        results["C"] = int(results["C"])
+
+        return results
 
 
 class DRGS(DRFL):
@@ -1386,10 +1320,10 @@ class DRGS(DRFL):
     Parameters:
     __________
         * ``length_range: tuple[int, int]``. tuple that indicates the range from the minimum length of subsequences to the maximum
-        * ``_R: float | int``. distance threshold
-        * ``_C: int``. frequency threshold
-        * ``_G: float | int``. magnitude threshold
-        * ``_epsilon: float``. overlap parameter
+        * ``R: float | int``. distance threshold
+        * ``C: int``. frequency threshold
+        * ``G: float | int``. magnitude threshold
+        * ``epsilon: float``. overlap parameter
 
     Public methods:
     ___________
@@ -1410,8 +1344,6 @@ class DRGS(DRFL):
         >>> drgs.show_results()
 
         >>> drgs.plot_results()
-
-
     """
 
     def __init__(self, length_range: tuple[int, int], R: Union[float, int], C: int, G: Union[float, int],
@@ -1428,8 +1360,10 @@ class DRGS(DRFL):
             * L: `int | float`. length of the subsequence
 
         Raises:
-
+            TypeError: If any parameter is not of the correct type.
+            ValueError: If any parameter has an invalid value.
         """
+
         # Check the validity of the parameters
         params = locals()
         super()._check_params(**params)
@@ -1489,6 +1423,9 @@ class DRGS(DRFL):
         Returns:
             `Sequence`. The sequence grown from the left side.
 
+        Raises:
+            TypeError: If the sequence is not a Sequence object.
+
         Examples:
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
@@ -1496,9 +1433,9 @@ class DRGS(DRFL):
             >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
             >>> drgs.fit(time_series)
 
-            >>> sequence = Sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 1), 0))
-            >>> sequence.add_sequence(Subsequence(np.array([2, 3, 6, 4]), datetime.date(2024, 1, 7), 6))
-            >>> sequence.add_sequence(Subsequence(np.array([1, 3, 6, 4]), datetime.date(2024, 1, 12), 11))
+            >>> sequence = Sequence(Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([2, 3, 6]), datetime.date(2024, 1, 7), 6))
+            >>> sequence.add_sequence(Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 12), 11))
 
             >>> sequence_left = drgs._DRGS__grow_from_left(sequence)
             >>> print(sequence_left)
@@ -1521,6 +1458,11 @@ class DRGS(DRFL):
                 )
             ]
         """
+
+        # Check if the sequence is a Sequence object
+        if not isinstance(sequence, Sequence):
+            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence)} instead.")
+
         # Increment the length of subsequences
         m_next = sequence.length_subsequences + 1
 
@@ -1540,10 +1482,62 @@ class DRGS(DRFL):
         return sequence_left
 
     def __grow_from_right(self, sequence: Sequence) -> Sequence:
+        """
+        Grow the sequence from the left side.
+        This method detects the length of subsequences and grows them from the left to right side.
+
+        Parameters:
+            * sequence: `Sequence`. The sequence to grow from the left side.
+
+        Returns:
+            `Sequence`. The sequence grown from the left side.
+
+        Raises:
+            TypeError: If the sequence is not a Sequence object.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+
+            >>> sequence = Sequence(Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([2, 3, 6]), datetime.date(2024, 1, 7), 6))
+            >>> sequence.add_sequence(Subsequence(np.array([1, 3, 6]), datetime.date(2024, 1, 12), 11))
+
+            >>> sequence_right = drgs._DRGS__grow_from_right(sequence)
+            >>> print(sequence_right)
+            Sequence(
+                list_sequences=[
+                    Subsequence(
+                        - instance = [1, 2, 3, 6]
+                        - date = 2024-1-6
+                        - starting_point = 5
+                    ),
+                    Subsequence(
+                        - instance = [1, 1, 3, 6]
+                        - date = 2024-1-10
+                        - starting_point = 10
+                    )
+                ]
+            )
+        """
+
+        # Check if the sequence is a Sequence object
+        if not isinstance(sequence, Sequence):
+            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence)} instead.")
+
+        # Increment the length of subsequences
         m_next = sequence.length_subsequences + 1
+
+        # Extract the components from the sequence
         _, dates, starting_points = sequence.extract_components(flatten=True)
         sequence_right = Sequence()
+
+        # Iterate over the sequence
         for i in range(len(sequence)):
+            # Check if the starting point minus one is greater than 0
             if starting_points[i] - 1 > 0:
                 instance = self.time_series[starting_points[i] - 1:starting_points[i] + m_next - 1].values
                 sequence_right.add_sequence(
@@ -1558,21 +1552,91 @@ class DRGS(DRFL):
         pass
 
     def __execute_drfl(self, time_series: pd.Series, m: int) -> Routines:
+        """
+        Execute the DRFL algorithm for a given length of subsequences.
+
+        Parameters:
+            * time_series: `pd.Series`. The time series data to analyze.
+            * m: `int`. The length of subsequences.
+
+        Returns:
+            `Routines`. The discovered routines as a `Routines` object.
+
+        Raises:
+            TypeError: If the time series data is not a pandas Series with Datetime index or if the length of subsequences is not an integer.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=1)
+            >>> routines = drgs._DRGS__execute_drfl(time_series, 3)
+            >>> print(routines)
+            Routines(
+            list_routines=[
+                Cluster(
+                    -Centroid: [1.33333333 3.         6.        ]
+                    -Instances: [array([1, 3, 6]), array([2, 3, 6]), array([1, 3, 6])]
+                    -Dates: [Timestamp('2024-01-01 00:00:00'), Timestamp('2024-01-07 00:00:00'), Timestamp('2024-01-12 00:00:00')]
+                    -Starting Points: [0, 6, 11]
+                ),
+                Cluster(
+                    -Centroid: [3. 6. 4.]
+                    -Instances: [array([3, 6, 4]), array([3, 6, 4]), array([3, 6, 4])]
+                    -Dates: [Timestamp('2024-01-02 00:00:00'), Timestamp('2024-01-08 00:00:00'), Timestamp('2024-01-13 00:00:00')]
+                    -Starting Points: [1, 7, 12]
+                ),
+                Cluster(
+                    -Centroid: [5.5  3.5  1.25]
+                    -Instances: [array([6, 4, 2]), array([4, 2, 1]), array([6, 4, 1]), array([6, 4, 1])]
+                    -Dates: [Timestamp('2024-01-03 00:00:00'), Timestamp('2024-01-04 00:00:00'), Timestamp('2024-01-09 00:00:00'), Timestamp('2024-01-14 00:00:00')]
+                    -Starting Points: [2, 3, 8, 13]
+                )]
+            )
+        """
+
         super().__init__(m=m, R=self._R, C=self._C, G=self._G, epsilon=self._epsilon, L=self._L)
         super().fit(time_series)
         return super().get_results()
 
-    def fit(self, time_series: pd.Series):
+    def fit(self, time_series: pd.Series) -> None:
+        """
+        Fit the DRGS algorithm to the time series data.
+
+        The steps that the algorithm follows are:
+            1. Initialize the first routine with the minimum length of subsequences.
+            2. Grow the subsequences from the left and right sides.
+            3. Obtain the routines for the left and right subsequences.
+            4. Union for the left and right routines from the cluster.
+            5. Repeat the process for the range of lengths.
+
+        Parameters:
+            * time_series: `pd.Series`. The time series data to analyze.
+
+        Raises:
+            TypeError: If the time series data is not a pandas Series with Datetime index.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+        """
+
+        # Check the validity of the time series data
         super()._check_type_time_series(time_series)
         self.time_series = time_series
 
-        # Initialization
+        # Initialization of the first hierarchy level routine
         init_routine = self.__execute_drfl(self.time_series, self.__length_range[0])
         actual_length = self.__length_range[0] + 1
 
+        # If there are no routines discovered at first iteration, end the code
         if init_routine.is_empty():
             warnings.warn("No routines have been discovered", UserWarning)
-            return self.__hierarchical_routines
+            self.__already_fitted = True
+            return
 
         self.__hierarchical_routines.add_routine(init_routine)
 
@@ -1580,29 +1644,35 @@ class DRGS(DRFL):
         while actual_length <= self.__length_range[1] and not \
                 self.__hierarchical_routines[actual_length - 1].is_empty():
 
+            # Initialize the routines for the current length
             routines_l_k = Routines()
+
+            # Iterate over the clusters of the previous length
             for k, cluster in enumerate(self.__hierarchical_routines[actual_length - 1]):
+                # Obtain the subsequences of the cluster
                 instances = cluster.get_sequences()
 
+                # Grow the subsequences from the left and right sides
                 left_grow = self.__grow_from_left(instances)
                 right_grow = self.__grow_from_right(instances)
 
+                # Obtain the routines for the left and right subsequences
                 left_routines = super()._subgroup(sequence=left_grow, R=self._R, C=self._C, G=self._G)
                 right_routines = super()._subgroup(sequence=right_grow, R=self._R, C=self._C, G=self._G)
 
-                if routines_l_k.is_empty():
-                    routines_l_k = self.__union_routines(left_routines, right_routines)
-                else:
-                    join_routines = self.__union_routines(left_routines, right_routines)
-                    routines_l_k = self.__union_routines(routines_l_k, join_routines)
+                # Union for the left and right routines from cluster k
+                join_routine = self.__union_routines(left_routines, right_routines)
+                routines_l_k = self.__union_routines(routines_l_k, join_routine)
 
+            # If there are no routines for the current length, break the loop
             if routines_l_k.is_empty():
                 break
 
+            # Union for the left and right routines from the actual hierarchy
             self.__hierarchical_routines.add_routine(routines_l_k)
-            actual_length += 1
+            actual_length += 1  # Increment the hierarchy
 
-        self.__already_fitted = True
+        self.__already_fitted = True  # Set the already_fitted attribute to True
 
     def get_results(self) -> HierarchyRoutine:
         """
@@ -1613,6 +1683,10 @@ class DRGS(DRFL):
 
         Note:
             The `HierarchyRoutine` object provides methods and properties to further explore and manipulate the discovered routines.
+            This method has to be called after fitting the algorithm
+
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
 
         Examples:
             >>> import pandas as pd
@@ -1621,8 +1695,12 @@ class DRGS(DRFL):
             >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
             >>> drgs.fit(time_series)
             >>> print(drgs.get_results())
-
         """
+
+        # Check if the model has been fitted before returning the results
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
         return self.__hierarchical_routines
 
     def show_results(self) -> None:
@@ -1634,6 +1712,9 @@ class DRGS(DRFL):
         Note:
             This method should be called after the `fit` method to ensure that routines have been discovered and are ready to be displayed.
 
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
+
         Examples:
             >>> import pandas as pd
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
@@ -1643,6 +1724,7 @@ class DRGS(DRFL):
             >>> drgs.show_results()
         """
 
+        # Check if the model has been fitted before displaying the results
         if not self.__already_fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
@@ -1754,8 +1836,8 @@ class DRGS(DRFL):
                 plt.bar(np.arange(0, len(self.time_series)), self.time_series.values,
                         color=colors, edgecolor="black", linewidth=linewidth_bars)
 
+                # Set the ticks on the x-axis and y-axis
                 if show_xticks:
-                    # Set the ticks on the x-axis and y-axis
                     plt.xticks(ticks=np.arange(xlim[0], xlim[1]),
                                labels=np.arange(xlim[0], xlim[1]),
                                fontsize=xticks_fontsize)
