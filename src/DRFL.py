@@ -1193,9 +1193,9 @@ class ParallelSearchDRFL(DRFL):
         """
 
         m, R, C, G, epsilon, L, alpha, sigma, time_series, target_centroids = params
-        drfl = DRFL(m=m, R=R, C=C, G=G, epsilon=epsilon, L=L)
-        drfl.fit(time_series)
-        estimated_distance = drfl.estimate_distance(target_centroids, alpha=alpha, sigma=sigma)
+        super().__init__(m=m, R=R, C=C, G=G, epsilon=epsilon, L=L)
+        super().fit(time_series)
+        estimated_distance = super().estimate_distance(target_centroids, alpha=alpha, sigma=sigma)
 
         return {"m": m, "R": R, "C": C, "G": G, "epsilon": epsilon, "L": L, "estimated_distance": estimated_distance}
 
