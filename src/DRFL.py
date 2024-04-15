@@ -231,6 +231,7 @@ class DRFL:
         integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize",
                           "coloured_text_fontsize", "text_fontsize"]
         tuple_params = ["figsize", "xlim"]
+        bool_params = ["show_xticks", "show_horizontal_lines"]
 
         # Check the validity of the parameters
         for key, value in saved_args["kwargs"].items():
@@ -257,7 +258,7 @@ class DRFL:
                             f"{key} values must be tuple of integers. Got tuple({type(value[0]).__name__}, {type(value[1]).__name__}) instead")
 
             # Check if show_xticks is a boolean
-            if key == "show_xticks":
+            if key in bool_params:
                 if not isinstance(value, bool):
                     raise TypeError(f"{key} must be a boolean. Got {type(value).__name__}")
 
@@ -267,7 +268,7 @@ class DRFL:
                     raise TypeError(f"{key} must be an integer or a float. Got {type(value).__name__}")
 
             # Check if save_dir is a string
-            if key == "save_dir":
+            if key in "save_dir":
                 if value is not None and not isinstance(value, str):
                     raise TypeError(f"{key} must be a string indicating path to save the plot. Got {type(value).__name__}")
 
@@ -1687,8 +1688,11 @@ class DRGS(DRFL):
             if routines_l_k.is_empty():
                 break
 
+            # Remove repeated clusters
+            unique_routines = routines_l_k.drop_duplicates()
+
             # Union for the left and right routines from the actual hierarchy
-            self.__hierarchical_routines.add_routine(routines_l_k)
+            self.__hierarchical_routines.add_routine(unique_routines)
             actual_length += 1  # Increment the hierarchy
 
         self.__already_fitted = True  # Set the already_fitted attribute to True
@@ -1759,12 +1763,11 @@ class DRGS(DRFL):
                     print("\n\t", "-" * 80)
 
     def plot_hierarchical_results(self, title_fontsize: int = 20, show_xticks: bool = True,
-                                  xticks_fontsize: int = 20, yticks_fontsize: int = 20,
-                                  labels_fontsize: int = 20, figsize: tuple[int, int] = (30, 10),
-                                  coloured_text_fontsize: int = 20, text_fontsize: int = 15,
-                                  linewidth_bars: Union[int, float] = 1.5,
-                                  xlim: Optional[tuple[int, int]] = None,
-                                  save_dir: Optional[str] = None):
+                                  show_horizontal_lines: bool = True, show_background_annotations: bool = True,
+                                  xticks_fontsize: int = 20, yticks_fontsize: int = 20, labels_fontsize: int = 20,
+                                  figsize: tuple[int, int] = (30, 10), coloured_text_fontsize: int = 20,
+                                  text_fontsize: int = 15, linewidth_bars: Union[int, float] = 1.5,
+                                  xlim: Optional[tuple[int, int]] = None, save_dir: Optional[str] = None):
 
         """
         This method uses matplotlib to plot the results of the algorithm.
@@ -1776,6 +1779,8 @@ class DRGS(DRFL):
         Parameters:
             * title_fontsize: `int` (default is 20). Size of the title plot.
             * show_xticks: `bool` (default is True). Whether to show the xticks or not.
+            * show_horizontal_lines: `bool` (default is True). Whether to show the horizontal lines or not.
+            * show_background_annotations: `bool` (default is True). Whether to show the height of colorless bars or not.
             * xticks_fontsize: `int` (default is 20). Size of the xticks.
             * yticks_fontsize: `int (default is 20)`. Size of the yticks.
             * labels_fontsize: `int` (default is 20). Size of the labels.
@@ -1825,6 +1830,11 @@ class DRGS(DRFL):
                 # Add subplot for each cluster; use entire row if only one cluster
                 fig.add_subplot(gs[i, :]) if len(routine) == 1 else fig.add_subplot(gs[i, j])
 
+                # Add horizontal lines for the minimum and maximum thesholds if required
+                if show_horizontal_lines:
+                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+
                 # Set the colors for the time series bars
                 colors = ["gray"] * len(self.time_series)
                 for sp in cluster.get_starting_points():
@@ -1840,13 +1850,14 @@ class DRGS(DRFL):
 
                                 colors[sp + k] = base_colors[j]
 
-                # Annotate the value of each bar that is not coloured
-                for k in range(len(self.time_series)):
-                    # if the bar is not coloured (its value is gray and not an array), annotate the value
-                    if not isinstance(colors[k], np.ndarray):
-                        plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
-                                 s=f"{self.time_series[k]}", fontsize=text_fontsize,
-                                 color="black")
+                # Annotate the value of each bar that is not colored if required
+                if show_background_annotations:
+                    for k in range(len(self.time_series)):
+                        # if the bar is not coloured (its value is gray and not an array), annotate the value
+                        if not isinstance(colors[k], np.ndarray):
+                            plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
+                                     s=f"{self.time_series[k]}", fontsize=text_fontsize,
+                                     color="black")
 
                 # Customize the title for each subplot
                 plt.title(f"Hierarchy {length} Routine {j + 1}", fontsize=title_fontsize)
@@ -1892,7 +1903,7 @@ if __name__ == "__main__":
     # time_series = pd.concat([time_series] * 10)
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
-    drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
+    drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=0)
     drgs.fit(time_series)
     drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
-                                   show_xticks=False)
+                                   show_horizontal_lines=True, show_background_annotations=False, figsize=(90, 40))

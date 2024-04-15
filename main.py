@@ -208,7 +208,7 @@ if __name__ == "__main__":
     print(f"Elapsed time workers=10: {time.time() - st}")
 
     st = time.time()
-    mDRFL = ParallelSearchDRFL(n_jobs=cpu_count() - 2,alpha=alpha, sigma=sigma,  param_grid=param_grid)
+    mDRFL = ParallelSearchDRFL(n_jobs=cpu_count() - 2, alpha=alpha, sigma=sigma,  param_grid=param_grid)
     mDRFL.search_best(time_series, target_centroids=target_centroids)
     print(f"Elapsed time workers={cpu_count() - 2}: {time.time() - st}")
 

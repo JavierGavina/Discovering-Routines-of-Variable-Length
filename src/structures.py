@@ -2640,6 +2640,21 @@ class Routines:
 
         return len(self.__routines) == 0
 
+    def drop_duplicates(self) -> 'Routines':
+        """
+        Filter the repeated clusters in the routines and returns
+
+        Returns:
+            `Routines`. The routines without the repeated clusters
+        """
+
+        new_routines = Routines()
+
+        for routine in self.__routines:
+            if routine not in new_routines:
+                new_routines.add_routine(routine)
+        return new_routines
+
 
 class HierarchyRoutine:
     """
@@ -3094,6 +3109,97 @@ class HierarchyRoutine:
 
         """
         return zip(self.__hierarchy, self.__list_routines)
+
+    # def filter_repeated_routines_on_hierarchy(self, hierarchy: int) -> 'HierarchyRoutine':
+    #     """
+    #     Filters the repeated routines in the correspondent hierarchy
+    #
+    #     Parameters:
+    #         * hierarchy: `int`. The hierarchy to filter the repeated routines
+    #
+    #     Returns:
+    #         `HierarchyRoutine`. The hierarchy routine without the repeated routines
+    #
+    #     Raises:
+    #         TypeError: if the hierarchy is not an integer
+    #         KeyError: if the hierarchy is not found in the routines
+    #
+    #     Examples:
+    #         >>> routine = Routines(cluster=Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    #         >>> routine2 = Routines(cluster=Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    #         >>> routine3 = Routines(cluster=Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+    #
+    #         >>> hierarchy_routine = HierarchyRoutine(routine)
+    #         >>> hierarchy_routine[4] = routine2
+    #         >>> hierarchy_routine[5] = routine3
+    #         >>> hierarchy_routine.filter_repeated_routines_on_hierarchy(4)
+    #         HierarchyRoutine(
+    #             [Hierarchy: 4.
+    #                 Routines(
+    #                     list_routines=[
+    #                         Cluster(
+    #                             - centroid = [3, 4, 5],
+    #                             - instances = [[1, 2, 3]]
+    #                             - starting_points = [0]
+    #                             - dates = [datetime.date(2021, 1, 1)]
+    #                         )
+    #                     ]
+    #                 )
+    #             ],
+    #             [Hierarchy: 5.
+    #                 Routines(
+    #                     list_routines=[
+    #                         Cluster(
+    #                             - centroid = [7, 8, 9, 10],
+    #                             - instances = [[5, 6, 7, 8]]
+    #                             - starting_points = [4]
+    #                             - dates = [datetime.date(2021, 1, 2)]
+    #                         )
+    #                     ]
+    #                 )
+    #             ]
+    #         )
+    #     """
+    #
+    #     # Check if the hierarchy is an integer
+    #     if not isinstance(hierarchy, int):
+    #         raise TypeError(f"hierarchy has to be an integer. Got {type(hierarchy).__name__} instead")
+    #
+    #     # Check if the hierarchy exists
+    #     if hierarchy not in self.__hierarchy:
+    #         raise KeyError(f"hierarchy {hierarchy} not found in {self.__hierarchy}")
+    #
+    #     # Get the index of the hierarchy
+    #     idx = self.__hierarchy.index(hierarchy)
+    #     routine = self.__list_routines[idx]
+    #
+    #     # Get the subsequences from each cluster in the routine
+    #     sequences: list[Sequence] = []
+    #     for cluster in routine.get_routines():
+    #         sequences.append(cluster.get_sequences())
+    #
+    #     # Get the unique subsequences
+    #     unique_sequences = []
+    #     for sequence in sequences:
+    #         if sequence not in unique_sequences:
+    #             unique_sequences.append(sequence)
+    #
+    #     # Create a new routine with the unique subsequences
+    #     new_routine = Routines()
+    #     for sequence in unique_sequences:
+    #         new_centroid = sequence.get_subsequences(to_array=True).mean(axis=0)
+    #         new_routine.add_routine(Cluster(centroid=new_centroid, instances=sequence))
+    #
+    #     # Create a new hierarchy routine with the new routine
+    #     new_hierarchy_routine = HierarchyRoutine()
+    #     new_hierarchy_routine[hierarchy] = new_routine
+    #
+    #     # Add the other routines to the new hierarchy routine
+    #     for key, value in self.items:
+    #         if key != hierarchy:
+    #             new_hierarchy_routine[key] = value
+    #
+    #     return new_hierarchy_routine
 
     def to_dictionary(self) -> dict:
         """
