@@ -13,11 +13,11 @@ The algorithm is based on the following steps:
 The algorithm is implemented in the class DRFL, which has the following methods and parameters:
 
 The parameters:
-    * _m: Length of each secuence
-    * _R: distance threshold
-    * _C: Frequency threshold
-    * _G: magnitude threshold
-    * _epsilon: Overlap Parameter
+    * m: Length of each secuence
+    * R: distance threshold
+    * C: Frequency threshold
+    * G: magnitude threshold
+    * epsilon: Overlap Parameter
 
 Public methods:
     * fit: Fit the time series to the algorithm.
@@ -117,6 +117,7 @@ class DRFL:
         params = locals()
         self._check_params(**params)
 
+        # Initialize the parameters
         self._m: int = m
         self._R: int | float = R
         self._C: int = C
@@ -158,7 +159,8 @@ class DRFL:
 
                 # Check if the values are valid
                 if value[0] < 2 or value[1] < value[0]:
-                    raise ValueError("Invalid length_range values")
+                    raise ValueError(
+                        f"Invalid length_range values. The first value must be greater or equal than 2 and the second value must be greater than the first value. Got {value} instead")
 
             # Check if the distance threshold, magnitude and inverse magnitude are integer or a float
             if key in ["R", "G", "L"]:
@@ -206,10 +208,11 @@ class DRFL:
         """
 
         if not isinstance(time_series, pd.Series):
-            raise TypeError("time_series must be a pandas Series")
+            raise TypeError(f"time_series must be a pandas Series. Got {type(time_series).__name__} instead")
 
         if not isinstance(time_series.index, pd.DatetimeIndex):
-            raise TypeError("time_series index must be a pandas DatetimeIndex")
+            raise TypeError(
+                f"time_series index must be a pandas DatetimeIndex. Got {type(time_series.index).__name__} instead")
 
     @staticmethod
     def _check_plot_params(**kwargs: dict) -> None:
@@ -234,30 +237,39 @@ class DRFL:
             # Check if the numerical parameters are integers
             if key in integer_params:
                 if not isinstance(value, int):
-                    raise TypeError(f"{key} must be an integer. Got {type(value)}")
+                    raise TypeError(f"{key} must be an integer. Got {type(value).__name__}")
 
             # Check if the tuple parameters are tuples of integers
             if key in tuple_params:
-                if not isinstance(value, tuple) or not all(isinstance(i, int) for i in value):
-                    # In the case of xlim, it can be None
-                    if key == "xlim" and value is None:
-                        continue
-                    raise TypeError(f"{key} must be a tuple of integers.")
+                # In the case of xlim, it can be None
+                if value is not None:
+                    # Check if the value is a tuple
+                    if not isinstance(value, tuple):
+                        raise TypeError(f"{key} must be a tuple. Got {type(value).__name__}")
+
+                    # Check if the tuple has two values
+                    if len(value) != 2:
+                        raise ValueError(f"{key} must be a tuple with two values. Got {len(value)} instead")
+
+                    # Check if the values from the tuple are integers
+                    if not all(isinstance(i, int) for i in value):
+                        raise TypeError(
+                            f"{key} values must be tuple of integers. Got tuple({type(value[0]).__name__}, {type(value[1]).__name__}) instead")
 
             # Check if show_xticks is a boolean
             if key == "show_xticks":
                 if not isinstance(value, bool):
-                    raise TypeError(f"{key} must be a boolean. Got {type(value)}")
+                    raise TypeError(f"{key} must be a boolean. Got {type(value).__name__}")
 
             # Check if linewidth_bars is an integer or a float
             if key == "linewidth_bars":
                 if not isinstance(value, (int, float)):
-                    raise TypeError(f"{key} must be an integer or a float. Got {type(value)}")
+                    raise TypeError(f"{key} must be an integer or a float. Got {type(value).__name__}")
 
             # Check if save_dir is a string
             if key == "save_dir":
                 if value is not None and not isinstance(value, str):
-                    raise TypeError(f"{key} must be a string indicating path to save the plot. Got {type(value)}")
+                    raise TypeError(f"{key} must be a string indicating path to save the plot. Got {type(value).__name__}")
 
     @staticmethod
     def __minimum_distance_index(distances: Union[np.ndarray, list]) -> int:
@@ -284,7 +296,7 @@ class DRFL:
         """
         # Check if the distances are a list
         if not isinstance(distances, list) and not isinstance(distances, np.ndarray):
-            raise TypeError("distances must be a list or a numpy array")
+            raise TypeError(f"distances must be a list or a numpy array. Got {type(distances).__name__} instead")
 
         return int(np.argmin(distances))
 
@@ -322,13 +334,14 @@ class DRFL:
 
         # Check if S1 is an instance of Subsequence
         if not isinstance(S1, Subsequence):
-            raise TypeError("S1 must be instance of Subsequence")
+            raise TypeError(f"S1 must be instance of Subsequence. Got {type(S1).__name__} instead")
 
         # Check if S2 is an instance of Subsequence or np.ndarray
-        if isinstance(S2, Subsequence) or isinstance(S2, np.ndarray):
-            return S1.distance(S2) <= R
+        if not isinstance(S2, (Subsequence, np.ndarray)):
+            raise TypeError(f"S2 must be instance of Subsequence or np.ndarray. Got {type(S2).__name__} instead")
 
-        raise TypeError("S2 must be instance of Subsequence or np.ndarray")
+        return S1.distance(S2) <= R
+
 
     @staticmethod
     def __is_overlap(S_i: Subsequence, S_j: Subsequence):
@@ -373,11 +386,16 @@ class DRFL:
 
         # Check if S_i and S_j are instances of Subsequence
         if not isinstance(S_i, Subsequence) or not isinstance(S_j, Subsequence):
-            raise TypeError("S_i and S_j must be instances of Subsequence")
+            raise TypeError(f"S_i and S_j must be instances of Subsequence. Got {type(S_i).__name__} and {type(S_j).__name__} instead")
 
+        # Get the starting point and length of the subsequences
         start_i, p = S_i.get_starting_point(), len(S_i.get_instance())
         start_j, q = S_j.get_starting_point(), len(S_j.get_instance())
-        return not ((start_i + p <= start_j) or (start_j + q <= start_i))
+
+        # Check if the overlap inequality holds
+        is_overlap = not (start_i + p > start_j) or (start_j + q > start_i)
+
+        return is_overlap
 
     @staticmethod
     def __inverse_gaussian_distance(N_target: int, N_estimated: int, sigma: float) -> float:
@@ -506,11 +524,11 @@ class DRFL:
 
         # Check if t is an integer
         if not isinstance(t, int):
-            raise TypeError("t must be an integer")
+            raise TypeError(f"t must be an integer. Got {type(t).__name__} instead")
 
         # Check if t is within the range of the time series
         if t + self._m > len(time_series) or t < 0:
-            raise ValueError(f"The starting point of the subsequence is out of the time series range")
+            raise ValueError(f"The starting point {t} of the subsequence is out of the time series range (0, {len(time_series)-self._m})")
 
         window = time_series[t:t + self._m]  # Extract the time window
 
@@ -560,7 +578,7 @@ class DRFL:
 
         # Check if subsequence is an instance of Subsequence and cluster is an instance of Cluster
         if not isinstance(subsequence, Subsequence) or not isinstance(cluster, Cluster):
-            raise TypeError("subsequence and cluster must be instances of Subsequence and Cluster respectively")
+            raise TypeError(f"subsequence and cluster must be instances of Subsequence and Cluster respectively. Got {type(subsequence).__name__} and {type(cluster).__name__} instead")
 
         # Check if the subsequence is not a trivial match with any of the instances from the cluster
         if not self.__is_match(S1=subsequence, S2=cluster.centroid, R=R):
@@ -775,7 +793,7 @@ class DRFL:
         """
 
         if epsilon < 0 or epsilon > 1:
-            raise ValueError("_epsilon must be between 0 and 1")
+            raise ValueError(f"epsilon must be between 0 and 1. Got {epsilon} instead")
 
         # Prepare to test and handle overlapping clusters
         keep_indices = set(range(len(self.__routines)))  # Initially, assume all clusters are to be kept
@@ -1133,7 +1151,7 @@ class ParallelSearchDRFL(DRFL):
 
         # Check if the parameter grid is a dictionary
         if not isinstance(param_grid, dict):
-            raise TypeError("param_grid must be a dictionary")
+            raise TypeError(f"param_grid must be a dictionary. Got {type(param_grid).__name__}")
 
         # Check if the parameter grid is not empty
         if not param_grid:
@@ -1142,7 +1160,7 @@ class ParallelSearchDRFL(DRFL):
         # Check if the parameter grid has valid parameters
         for param in param_grid:
             if param not in ["m", "R", "C", "G", "epsilon", "L"]:
-                raise ValueError(f"Invalid parameter in param_grid. Got {param}")
+                raise ValueError(f"Invalid parameter in param_grid. Got {param} and available parameters are: m, R, C, G, epsilon, L")
 
             if not isinstance(param_grid[param], list) and param != "m":
                 raise TypeError(f"Values for {param} must be a list. Got {type(param_grid[param]).__name__}")
@@ -1150,7 +1168,8 @@ class ParallelSearchDRFL(DRFL):
         param_values = {"R": param_grid["R"][0], "C": param_grid["C"][0],
                         "G": param_grid["G"][0], "epsilon": param_grid["epsilon"][0],
                         "L": param_grid["L"][0]}
-        # Check if each list of parameters values are valid
+
+        # Check if each list of parameter values is valid
         super()._check_params(**param_values)
 
     @staticmethod
@@ -1176,10 +1195,10 @@ class ParallelSearchDRFL(DRFL):
 
         # Check if alpha and sigma are valid
         if alpha < 0 or alpha > 1:
-            raise ValueError("alpha must be between 0 and 1")
+            raise ValueError(f"alpha must be between 0 and 1. Got {type(alpha).__name__} instead")
 
         if sigma < 1:
-            raise ValueError("sigma must be greater or equal than 1")
+            raise ValueError(f"sigma must be greater or equal than 1. Got {type(sigma).__name__} instead")
 
     def fit_single_instance(self, params):
         """
@@ -1461,7 +1480,7 @@ class DRGS(DRFL):
 
         # Check if the sequence is a Sequence object
         if not isinstance(sequence, Sequence):
-            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence)} instead.")
+            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence).__name__} instead.")
 
         # Increment the length of subsequences
         m_next = sequence.length_subsequences + 1
@@ -1526,7 +1545,7 @@ class DRGS(DRFL):
 
         # Check if the sequence is a Sequence object
         if not isinstance(sequence, Sequence):
-            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence)} instead.")
+            raise TypeError(f"The sequence must be a Sequence object. Got {type(sequence).__name__} instead.")
 
         # Increment the length of subsequences
         m_next = sequence.length_subsequences + 1
