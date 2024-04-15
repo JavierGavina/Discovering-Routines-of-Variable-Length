@@ -419,15 +419,15 @@ class Subsequence:
 
         # Check if the instance is an array
         if not isinstance(instance, np.ndarray):
-            raise TypeError("Instances must be an arrays")
+            raise TypeError(f"Instances must be an arrays. Got {type(instance).__name__} instead")
 
         # Check if the date is a datetime.date
         if not isinstance(date, datetime.date):
-            raise TypeError("Date must be a timestamps")
+            raise TypeError(f"Date must be a timestamps. Got {type(date).__name__} instead")
 
         # Check if the starting point is an integer
         if not isinstance(starting_point, int):
-            raise TypeError("starting_point must be a integer")
+            raise TypeError(f"starting_point must be a integer. Got {type(starting_point).__name__} instead")
 
     def __repr__(self):
         """
@@ -503,11 +503,11 @@ class Subsequence:
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__instance):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__instance) - 1})")
 
         # If the item is a numpy integer or float, convert it to a Python integer or float and return it
         if isinstance(self.__instance[index], np.int32):
@@ -542,7 +542,7 @@ class Subsequence:
 
         # Check if the parameter is an instance of Subsequence
         if not isinstance(other, Subsequence):
-            raise TypeError("other must be an instance of Subsequence")
+            raise TypeError(f"other must be an instance of Subsequence. Got {type(other).__name__} instead")
 
         # Check if they have the same length
         if len(self) != len(other):
@@ -680,7 +680,7 @@ class Subsequence:
 
         # If the parameter is not an instance of Subsequence or np.ndarray, raise an error
         else:
-            raise TypeError(f"other must be an instance of Subsequence or np.ndarray. Got {type(other)} instead")
+            raise TypeError(f"other must be an instance of Subsequence or np.ndarray. Got {type(other).__name__} instead")
 
         # Check if the instances have the same length
         if len(self.__instance) != len(new_instance):
@@ -861,11 +861,11 @@ class Sequence:
         """
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__list_sequences):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__list_sequences) - 1})")
 
         return self.__list_sequences[index]
 
@@ -891,15 +891,15 @@ class Sequence:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(value, Subsequence):
-            raise TypeError("new_sequence must be an instance of Subsequence")
+            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(value).__name__} instead")
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__list_sequences):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__list_sequences) - 1})")
 
         self.__list_sequences[index] = value
 
@@ -944,7 +944,7 @@ class Sequence:
         """
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(item, Subsequence):
-            raise TypeError("new_sequence must be an instance of Subsequence")
+            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(item).__name__} instead")
 
         return item in self.__list_sequences
 
@@ -960,10 +960,10 @@ class Sequence:
             IndexError: if the index is out of range
         """
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         if not 0 <= index < len(self.__list_sequences):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__list_sequences) - 1})")
 
         del self.__list_sequences[index]
 
@@ -1003,7 +1003,7 @@ class Sequence:
             )
         """
         if not isinstance(other, Sequence):
-            raise TypeError("other must be an instance of Sequence")
+            raise TypeError(f"other must be an instance of Sequence. Got {type(other).__name__} instead")
 
         new_sequence = Sequence()
         new_sequence.__list_sequences = self.__list_sequences + other.__list_sequences
@@ -1033,7 +1033,7 @@ class Sequence:
 
         # Check if the parameter is an instance of Sequence
         if not isinstance(other, Sequence):
-            raise TypeError("other must be an instance of Sequence")
+            raise TypeError(f"other must be an instance of Sequence. Got {type(other).__name__} instead")
 
         # Check if the subsequences are equal
         return np.array_equal(self.get_subsequences(), other.get_subsequences())
@@ -1068,11 +1068,11 @@ class Sequence:
 
         # Check if the subsequence is a Subsequence instance
         if not isinstance(subsequence, Subsequence):
-            raise TypeError("subsequence must be an instance of Subsequence")
+            raise TypeError(f"subsequence must be an instance of Subsequence. Got {type(subsequence).__name__} instead")
 
         # Check if the length of the subsequence is the same as the length of the sequence
         if self.__length is not None and len(subsequence) != self.__length:
-            raise ValueError("The length of the subsequence must be the same as the length of the Sequence")
+            raise ValueError(f"The length of the subsequence must be the same as the length of the Sequence. Got {len(subsequence)} instead of {self.__length}")
 
     def _already_exists(self, subsequence: 'Subsequence') -> bool:
         """
@@ -1140,7 +1140,7 @@ class Sequence:
         """
         # Check if the new sequence is a Subsequence instance
         if not isinstance(new, Subsequence):
-            raise TypeError("new has to be an instance of Subsequence")
+            raise TypeError(f"new has to be an instance of Subsequence. Got {type(new).__name__} instead")
 
         # Check if the new sequence already exists
         if self._already_exists(new):
@@ -1148,8 +1148,7 @@ class Sequence:
 
         # Check if the length of the subsequence is the same as the length of the sequence
         if self.__length is not None and len(new) != self.__length:
-            raise ValueError(
-                f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
+            raise ValueError(f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
 
         # If the sequence is empty, set the length of the sequence
         if len(self.__list_sequences) == 0:
@@ -1207,7 +1206,7 @@ class Sequence:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(new_sequence, Subsequence):
-            raise TypeError("new_sequence must be an instance of Subsequence")
+            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(new_sequence).__name__} instead")
 
         # Iterate through the list to find the subsequence with the matching starting point
         for i, subseq in enumerate(self.__list_sequences):
@@ -1217,7 +1216,7 @@ class Sequence:
                 return
 
         # If not found, raise an error indicating the starting point does not exist
-        raise ValueError("The starting point doesn't exist")
+        raise ValueError(f"The starting point {starting_point} doesn't exist. The available starting points are {self.get_starting_points()}")
 
     def get_starting_points(self, to_array: bool = False) -> list[int]:
         """
@@ -1525,11 +1524,11 @@ class Cluster:
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__instances):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__instances) - 1})")
 
         return self.__instances[index]
 
@@ -1557,15 +1556,15 @@ class Cluster:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(value, Subsequence):
-            raise TypeError("new_sequence must be an instance of Subsequence")
+            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(value).__name__} instead")
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__instances):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__instances) - 1})")
 
         self.__instances[index] = value
 
@@ -1613,7 +1612,7 @@ class Cluster:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(item, Subsequence):
-            raise TypeError("new_sequence must be an instance of Subsequence")
+            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(item).__name__} instead")
 
         return item in self.__instances
 
@@ -1643,10 +1642,10 @@ class Cluster:
         """
 
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         if not 0 <= index < len(self.__instances):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__instances) - 1})")
 
         del self.__instances[index]
 
@@ -1680,11 +1679,11 @@ class Cluster:
         """
 
         if not isinstance(other, Cluster):
-            raise TypeError("other must be an instance of Cluster")
+            raise TypeError(f"other must be an instance of Cluster. Got {type(other).__name__} instead")
 
         # Check if the lengths of the subsequences from the instances of each cluster match
         if len(self.__instances[0]) != len(other.get_sequences()[0]):
-            raise ValueError("clusters do not have the same length of instances in each Subsequence")
+            raise ValueError(f"clusters do not have the same length of instances in each Subsequence. Expected len={len(self.__instances[0])} but got len={len(other.get_sequences()[0])}")
 
         new_instances = self.__instances + other.get_sequences()
         new_centroid = np.mean(new_instances.get_subsequences(), axis=0)
@@ -1724,7 +1723,7 @@ class Cluster:
             if other is None:
                 return False
 
-            raise TypeError("other must be an instance of Cluster")
+            raise TypeError(f"other must be an instance of Cluster. Got {type(other).__name__} instead")
 
         # Check if the centroid and the instances are equal
         if not np.array_equal(self.__centroid, other.centroid):
@@ -1768,11 +1767,11 @@ class Cluster:
 
         # Check if the centroid is an instance of np.ndarray
         if not isinstance(centroid, np.ndarray):
-            raise TypeError(f"centroid must be an instance of np.ndarray. Got {type(centroid)}")
+            raise TypeError(f"centroid must be an instance of np.ndarray. Got {type(centroid).__name__}")
 
         # Check if the instances is an instance of Sequence
         if not isinstance(instances, Sequence):
-            raise TypeError(f"instances must be an instance of Sequence. Got {type(instances)}")
+            raise TypeError(f"instances must be an instance of Sequence. Got {type(instances).__name__}")
 
         # Check if the length of the centroid is the same as the length of the subsequences
         if len(centroid) != instances.length_subsequences:
@@ -1814,7 +1813,7 @@ class Cluster:
 
         # Raise an error if the parameter is not a Subsequence or a numpy array
         if not isinstance(subsequence, Subsequence) and not isinstance(subsequence, np.ndarray):
-            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array")
+            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array. Got {type(subsequence).__name__} instead")
 
     @property
     def length_cluster_subsequences(self) -> int:
@@ -1861,11 +1860,11 @@ class Cluster:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(new_instance, Subsequence):
-            raise TypeError("new sequence must be an instance of Subsequence")
+            raise TypeError(f"new sequence must be an instance of Subsequence. Got {type(new_instance).__name__} instead")
 
         # Check if the new sequence is already an instance of the cluster
         if self.__instances._already_exists(new_instance):
-            raise ValueError("new sequence is already an instance of the cluster")
+            raise ValueError(f"new sequence is already an instance of the cluster")
 
         # Check if the length of the new instance is the same as the length of the subsequences
         if len(new_instance) != self.__length:
@@ -2071,7 +2070,7 @@ class Routines:
 
         if cluster is not None:
             if not isinstance(cluster, Cluster):
-                raise TypeError("cluster has to be an instance of Cluster")
+                raise TypeError(f"cluster has to be an instance of Cluster. Got {type(cluster).__name__} instead")
 
             self.__routines: list[Cluster] = [cluster]
             self.__hierarchy = cluster.length_cluster_subsequences
@@ -2207,11 +2206,11 @@ class Routines:
         """
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index must be an integer")
+            raise TypeError(f"index must be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__routines):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__routines) - 1})")
 
         return self.__routines[index]
 
@@ -2244,15 +2243,15 @@ class Routines:
         """
         # Check if the value is a Cluster instance
         if not isinstance(value, Cluster):
-            raise TypeError("value has to be an instance of Cluster")
+            raise TypeError(f"value has to be an instance of Cluster. Got {type(value).__name__} instead")
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index has to be an integer")
+            raise TypeError(f"index has to be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__routines):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range. Got (0, {len(self.__routines) - 1})")
 
         self.__routines[index] = value
 
@@ -2303,7 +2302,7 @@ class Routines:
 
         # Check if the item is a Cluster instance
         if not isinstance(item, Cluster):
-            raise TypeError("item has to be an instance of Cluster")
+            raise TypeError(f"item has to be an instance of Cluster. Got {type(item).__name__} instead")
 
         return item in self.__routines
 
@@ -2324,11 +2323,11 @@ class Routines:
 
         # Check if the index is an integer
         if not isinstance(index, int):
-            raise TypeError("index has to be an integer")
+            raise TypeError(f"index has to be an integer. Got {type(index).__name__} instead")
 
         # Check if the index is within the range of the list
         if not 0 <= index < len(self.__routines):
-            raise IndexError("index out of range")
+            raise IndexError(f"index {index} out of range (0, {len(self.__routines) - 1})")
 
         del self.__routines[index]
 
@@ -2382,7 +2381,7 @@ class Routines:
         """
         # Check if the other is a Routines instance
         if not isinstance(other, Routines):
-            raise TypeError("other has to be an instance of Routines")
+            raise TypeError(f"other has to be an instance of Routines. Got {type(other).__name__} instead")
 
         # Check if the routines are empty
         if other.is_empty() and not self.is_empty():
@@ -2394,8 +2393,7 @@ class Routines:
 
         # Check if the hierarchy is the same
         if not other.is_empty() and self.__hierarchy != other[0].length_cluster_subsequences:
-            raise ValueError(
-                f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
+            raise ValueError(f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
 
         # Concatenate the routines if both are not empty
         new_routines = Routines()
@@ -2439,7 +2437,7 @@ class Routines:
 
         # Check if the other is a Routines instance
         if not isinstance(other, Routines):
-            raise TypeError("other has to be an instance of Routines")
+            raise TypeError(f"other has to be an instance of Routines. Got {type(other).__name__} instead")
 
         # Check if the number of clusters is equal
         if len(self.__routines) != len(other.__routines):
@@ -2502,7 +2500,7 @@ class Routines:
         """
         # Check if the new_routine is a Cluster instance
         if not isinstance(new_routine, Cluster):
-            raise TypeError(f"new_routine has to be an instance of Cluster. Got {type(new_routine)} instead")
+            raise TypeError(f"new_routine has to be an instance of Cluster. Got {type(new_routine).__name__} instead")
 
         # Check if the hierarchy is not initialized
         if self.__hierarchy is None:
@@ -2510,8 +2508,7 @@ class Routines:
 
         # Check if the length of the subsequences is the same as the hierarchy
         if new_routine.length_cluster_subsequences != self.__hierarchy:
-            raise ValueError(
-                f"the length of the subsequences must be {self.__hierarchy}. Got {new_routine.length_cluster_subsequences} instead")
+            raise ValueError(f"the length of the subsequences must be {self.__hierarchy}. Got {new_routine.length_cluster_subsequences} instead")
 
         self.__routines.append(new_routine)
 
@@ -2772,9 +2769,9 @@ class HierarchyRoutine:
         if routines is not None:
             # Check if the routines is an instance of Routines
             if not isinstance(routines, Routines):
-                raise TypeError("routines has to be an instance of Routines")
+                raise TypeError(f"routines has to be an instance of Routines. Got {type(routines).__name__} instead")
 
-            # Check if the routines is not empty
+            # Check if the routines are not empty
             if len(routines) == 0:
                 raise ValueError("routines cannot be empty")
 
@@ -2819,11 +2816,11 @@ class HierarchyRoutine:
         """
         # Check if the hierarchy is an integer
         if not isinstance(hierarchy, int):
-            raise TypeError(f"hierarchy has to be an integer. Got {type(hierarchy)} instead")
+            raise TypeError(f"hierarchy has to be an integer. Got {type(hierarchy).__name__} instead")
 
         # Check if the routine is an instance of Routines
         if not isinstance(routine, Routines):
-            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine)} instead")
+            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine).__name__} instead")
 
         # Check if the routine is empty
         if routine.is_empty():
@@ -2831,8 +2828,7 @@ class HierarchyRoutine:
 
         # Check if the hierarchy is the same as the routine hierarchy
         if hierarchy != routine.hierarchy:
-            raise ValueError(
-                f"the hierarchy of the routines must be the same. Expected {hierarchy}. Got {routine.hierarchy} instead")
+            raise ValueError(f"the hierarchy of the routines must be the same. Expected {hierarchy}. Got {routine.hierarchy} instead")
 
         # If the hierarchy exists, we update the value
         if hierarchy in self.__hierarchy:
@@ -2875,7 +2871,7 @@ class HierarchyRoutine:
 
         # Check if the hierarchy is an integer
         if not isinstance(hierarchy, int):
-            raise TypeError("hierarchy has to be an integer")
+            raise TypeError(f"hierarchy has to be an integer. Got {type(hierarchy).__name__} instead")
 
         # Check if the hierarchy exists
         if hierarchy not in self.__hierarchy:
@@ -2929,7 +2925,7 @@ class HierarchyRoutine:
 
         # Check if the routine is an instance of Routines
         if not isinstance(routine, Routines):
-            raise TypeError("routine has to be an instance of Routines")
+            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine).__name__} instead")
 
         return routine in self.__list_routines
 
@@ -2982,7 +2978,7 @@ class HierarchyRoutine:
 
         # Check if the routine is an instance of Routines
         if not isinstance(routine, Routines):
-            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine)}")
+            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine).__name__}")
 
         # Check if the routine is empty
         if routine.is_empty():
