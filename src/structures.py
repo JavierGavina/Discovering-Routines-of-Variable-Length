@@ -333,10 +333,13 @@ For each hierarchy, exists one routine with the correspondent length of the subs
                 )
             )
 """
-
+import networkx as nx
 import numpy as np
 import datetime
 from typing import Union, Optional, Iterator
+
+import matplotlib.pyplot as plt
+import re
 
 import copy
 
@@ -680,7 +683,8 @@ class Subsequence:
 
         # If the parameter is not an instance of Subsequence or np.ndarray, raise an error
         else:
-            raise TypeError(f"other must be an instance of Subsequence or np.ndarray. Got {type(other).__name__} instead")
+            raise TypeError(
+                f"other must be an instance of Subsequence or np.ndarray. Got {type(other).__name__} instead")
 
         # Check if the instances have the same length
         if len(self.__instance) != len(new_instance):
@@ -1072,7 +1076,8 @@ class Sequence:
 
         # Check if the length of the subsequence is the same as the length of the sequence
         if self.__length is not None and len(subsequence) != self.__length:
-            raise ValueError(f"The length of the subsequence must be the same as the length of the Sequence. Got {len(subsequence)} instead of {self.__length}")
+            raise ValueError(
+                f"The length of the subsequence must be the same as the length of the Sequence. Got {len(subsequence)} instead of {self.__length}")
 
     def _already_exists(self, subsequence: 'Subsequence') -> bool:
         """
@@ -1148,7 +1153,8 @@ class Sequence:
 
         # Check if the length of the subsequence is the same as the length of the sequence
         if self.__length is not None and len(new) != self.__length:
-            raise ValueError(f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
+            raise ValueError(
+                f"The length of the subsequence must be the same as the length of the Sequence. Got {len(new)} instead of {self.__length}")
 
         # If the sequence is empty, set the length of the sequence
         if len(self.__list_sequences) == 0:
@@ -1206,7 +1212,8 @@ class Sequence:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(new_sequence, Subsequence):
-            raise TypeError(f"new_sequence must be an instance of Subsequence. Got {type(new_sequence).__name__} instead")
+            raise TypeError(
+                f"new_sequence must be an instance of Subsequence. Got {type(new_sequence).__name__} instead")
 
         # Iterate through the list to find the subsequence with the matching starting point
         for i, subseq in enumerate(self.__list_sequences):
@@ -1216,7 +1223,8 @@ class Sequence:
                 return
 
         # If not found, raise an error indicating the starting point does not exist
-        raise ValueError(f"The starting point {starting_point} doesn't exist. The available starting points are {self.get_starting_points()}")
+        raise ValueError(
+            f"The starting point {starting_point} doesn't exist. The available starting points are {self.get_starting_points()}")
 
     def get_starting_points(self, to_array: bool = False) -> list[int]:
         """
@@ -1683,7 +1691,8 @@ class Cluster:
 
         # Check if the lengths of the subsequences from the instances of each cluster match
         if len(self.__instances[0]) != len(other.get_sequences()[0]):
-            raise ValueError(f"clusters do not have the same length of instances in each Subsequence. Expected len={len(self.__instances[0])} but got len={len(other.get_sequences()[0])}")
+            raise ValueError(
+                f"clusters do not have the same length of instances in each Subsequence. Expected len={len(self.__instances[0])} but got len={len(other.get_sequences()[0])}")
 
         new_instances = self.__instances + other.get_sequences()
         new_centroid = np.mean(new_instances.get_subsequences(), axis=0)
@@ -1813,7 +1822,8 @@ class Cluster:
 
         # Raise an error if the parameter is not a Subsequence or a numpy array
         if not isinstance(subsequence, Subsequence) and not isinstance(subsequence, np.ndarray):
-            raise TypeError(f"subsequence must be an instance of Subsequence or a numpy array. Got {type(subsequence).__name__} instead")
+            raise TypeError(
+                f"subsequence must be an instance of Subsequence or a numpy array. Got {type(subsequence).__name__} instead")
 
     @property
     def length_cluster_subsequences(self) -> int:
@@ -1860,7 +1870,8 @@ class Cluster:
 
         # Check if the new_sequence is a Subsequence instance
         if not isinstance(new_instance, Subsequence):
-            raise TypeError(f"new sequence must be an instance of Subsequence. Got {type(new_instance).__name__} instead")
+            raise TypeError(
+                f"new sequence must be an instance of Subsequence. Got {type(new_instance).__name__} instead")
 
         # Check if the new sequence is already an instance of the cluster
         if self.__instances._already_exists(new_instance):
@@ -2393,7 +2404,8 @@ class Routines:
 
         # Check if the hierarchy is the same
         if not other.is_empty() and self.__hierarchy != other[0].length_cluster_subsequences:
-            raise ValueError(f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
+            raise ValueError(
+                f"the hierarchy of the routines must be the same. Expected {self.__hierarchy}, got {other.__hierarchy} instead")
 
         # Concatenate the routines if both are not empty
         new_routines = Routines()
@@ -2508,7 +2520,8 @@ class Routines:
 
         # Check if the length of the subsequences is the same as the hierarchy
         if new_routine.length_cluster_subsequences != self.__hierarchy:
-            raise ValueError(f"the length of the subsequences must be {self.__hierarchy}. Got {new_routine.length_cluster_subsequences} instead")
+            raise ValueError(
+                f"the length of the subsequences must be {self.__hierarchy}. Got {new_routine.length_cluster_subsequences} instead")
 
         self.__routines.append(new_routine)
 
@@ -2843,7 +2856,8 @@ class HierarchyRoutine:
 
         # Check if the hierarchy is the same as the routine hierarchy
         if hierarchy != routine.hierarchy:
-            raise ValueError(f"the hierarchy of the routines must be the same. Expected {hierarchy}. Got {routine.hierarchy} instead")
+            raise ValueError(
+                f"the hierarchy of the routines must be the same. Expected {hierarchy}. Got {routine.hierarchy} instead")
 
         # If the hierarchy exists, we update the value
         if hierarchy in self.__hierarchy:
@@ -3240,3 +3254,320 @@ class HierarchyRoutine:
         for idx, hierarchy in enumerate(self.__hierarchy):
             out_dict[hierarchy] = self.__list_routines[idx].to_collection()
         return out_dict
+
+
+class ClusterNode:
+    def __init__(self, cluster: Cluster, depth: int = 0, is_root: bool = False):
+        self.__node = cluster
+        self.__left: Optional[ClusterNode] = None
+        self.__right: Optional[ClusterNode] = None
+        self.__depth = depth
+        self.__is_root = is_root
+
+    def __str__(self):
+        indent = '   ' * self.__depth
+        description = f"{indent} ClusterNode(Depth= {self.__depth}, instances = {self.__node.get_sequences().get_subsequences()})\n"
+        if self.__left is not None:
+            description += "(L)" + self.__left.__str__()
+        if self.__right is not None:
+            description += "(R)" + self.__right.__str__()
+
+        return description
+
+    def __repr__(self):
+        return f"<ClusterNode depth={self.__depth}, instances={self.__node.get_sequences().get_subsequences()}>"
+
+    @property
+    def left(self):
+        return self.__left
+
+    @left.setter
+    def left(self, left: Cluster):
+        if not isinstance(left, Cluster):
+            raise TypeError(f"left has to be instance of Cluster. Got {type(left).__name__} instead")
+
+        self.__left = ClusterNode(left, self.__depth + 1)
+
+    @property
+    def right(self):
+        return self.__right
+
+    @right.setter
+    def right(self, right):
+        if not isinstance(right, Cluster):
+            raise TypeError(f"right has to be instance of Cluster. Got {type(right).__name__} instead")
+
+        self.__right = ClusterNode(right, self.__depth + 1)
+
+    @property
+    def node(self):
+        return self.__node
+
+    @node.setter
+    def node(self, cluster):
+        if not isinstance(cluster, Cluster):
+            raise TypeError(f"cluster has to be instance of Cluster. Got {type(cluster).__name__} instead")
+
+        self.__node = cluster
+
+    @property
+    def children(self):
+        return [self.__left, self.__right]
+
+    def is_leaf(self) -> bool:
+        return self.__left is None and self.__right is None
+
+    def profundity(self) -> int:
+        # Check if the node is a leaf
+        if self.is_leaf():
+            return 1
+
+        return 1 + max(self.__left.profundity(), self.__right.profundity())
+
+
+class ClusterTree:
+    def __init__(self):
+        self.__graph: nx.DiGraph = nx.DiGraph()
+        self.__nodes: list[Cluster] = []
+        self.__list_of_index: list[int] = []
+
+    @staticmethod
+    def __convert_edges_to_list(edges: nx.classes.reportviews.OutEdgeDataView) -> list[tuple[int, int, bool]]:
+        if not isinstance(edges, nx.classes.reportviews.OutEdgeDataView):
+            raise TypeError(f"edges has to be an instance of OutEdgeDataView. Got {type(edges).__name__} instead")
+
+        return list(edges)
+
+    def __check_and_convert_node(self, node: Union[Cluster, int]) -> int:
+        if not isinstance(node, (Cluster, int)):
+            raise TypeError(
+                f"node has to be either an integer or a Cluster instance. Got {type(node).__name__} instead")
+
+        if isinstance(node, Cluster):
+            if node not in self.__nodes:
+                raise IndexError(f"Cluster {node} not found in the list of clusters {self.__nodes}")
+
+            idx = self.__nodes.index(node)
+            return self.__list_of_index[idx]
+
+        return node
+
+    def __assign_edge_color(self) -> list[str]:
+        colors = ['red'] * len(self.__graph.edges)
+        left = self.__graph.edges.data("left")
+        left_formatted = self.__convert_edges_to_list(left)
+
+        for idx, (parent, child, is_left) in enumerate(left_formatted):
+            if is_left:
+                colors[idx] = "blue"
+
+        return colors
+
+    @property
+    def indexes(self):
+        return self.__list_of_index
+
+    @property
+    def nodes(self):
+        return self.__nodes
+
+    @property
+    def graph(self):
+        return self.__graph
+
+    @property
+    def edges(self) -> nx.classes.reportviews.OutEdgeDataView:
+        return self.__graph.edges.data()
+
+    def to_dictionary(self) -> dict:
+        return dict(zip(self.__list_of_index, self.__nodes))
+
+    def __check_clusters_from_edges(self, parent: Cluster, child: Cluster):
+        parent_hierarchy = parent.length_cluster_subsequences
+        child_hierarchy = child.length_cluster_subsequences
+
+        if parent not in self.__nodes:
+            raise IndexError(f"Cluster {parent} not found in the list of clusters")
+
+        if child not in self.__nodes:
+            raise IndexError(f"Cluster {child} not found in the list of clusters")
+
+        if parent == child:
+            raise ValueError("The parent and child cannot be the same cluster")
+
+        if child_hierarchy != parent_hierarchy + 1:
+            raise ValueError(
+                f"The child hierarchy must be the parent hierarchy + 1. Expected {parent_hierarchy + 1}. Got {child_hierarchy} instead")
+
+    def __check_and_return_edge(self, parent: Union[Cluster, int], child: Union[Cluster, int]):
+        if not isinstance(parent, (int, Cluster)) or not isinstance(child, (int, Cluster)):
+            raise TypeError(
+                f"The parent and child must be either an integer or a Cluster instance. Got {type(parent).__name__} and {type(child).__name__} instead")
+
+        if type(parent) != type(child):
+            raise TypeError(
+                f"The parent and child must be the same type. Got {type(parent).__name__} and {type(child).__name__} instead")
+
+        if isinstance(parent, Cluster):
+            self.__check_clusters_from_edges(parent, child)
+            return self.get_index_from_cluster(parent), self.get_index_from_cluster(child)
+
+        else:
+            if parent not in self.__list_of_index:
+                raise IndexError(f"Index {parent} not found in the list of indexes {self.__list_of_index}")
+
+            if child not in self.__list_of_index:
+                raise IndexError(f"Index {child} not found in the list of indexes {self.__list_of_index}")
+
+            parent_clust = self.get_cluster_from_index(parent)
+            child_clust = self.get_cluster_from_index(child)
+
+            self.__check_clusters_from_edges(parent_clust, child_clust)
+            return parent_clust, child_clust
+
+    def get_cluster_from_index(self, idx: int) -> Cluster:
+
+        if not isinstance(idx, int):
+            raise TypeError(f"idx has to be an integer. Got {type(idx).__name__} instead")
+
+        if idx not in self.__list_of_index:
+            raise IndexError(f"Index {idx} not found in the list of indexes {self.__list_of_index}")
+
+        return self.__graph.nodes.data()[idx]['cluster']
+
+    def get_index_from_cluster(self, node: Cluster) -> int:
+        node_index = self.__check_and_convert_node(node)
+        return node_index
+
+    def children(self, node: Union[Cluster, int]) -> list[int]:
+        node = self.__check_and_convert_node(node)
+        edges = list(self.edges)
+        children = [child for parent, child, _ in edges if parent == node]
+
+        return children
+
+    def parents(self, node: Union[Cluster, int]) -> list[int]:
+        node = self.__check_and_convert_node(node)
+        edges = list(self.edges)
+        parents = [parent for parent, child, _ in edges if child == node]
+        return parents
+
+    def has_children(self, node: Union[Cluster, int]) -> bool:
+        return len(self.children(node)) > 0
+
+    def has_parents(self, node: Union[Cluster, int]) -> bool:
+        return len(self.parents(node)) > 0
+
+    def assign_node(self, cluster: Cluster):
+
+        if not isinstance(cluster, Cluster):
+            raise TypeError(f"cluster has to be an instance of Cluster. Got {type(cluster).__name__} instead")
+
+        if cluster in self.__nodes:
+            raise ValueError(f"Cluster {cluster} already exists in the list of clusters {self.__nodes}")
+
+        idx_to_add = len(self.__nodes) + 1
+
+        self.__graph.add_node(idx_to_add, cluster=cluster)
+        self.__nodes.append(cluster)
+        self.__list_of_index.append(idx_to_add)
+
+    def grow_from_left(self, vertex_parent: Union[Cluster, int], vertex_child: Union[Cluster, int]) -> None:
+
+        parent, child = self.__check_and_return_edge(vertex_parent, vertex_child)
+        self.__graph.add_edge(parent, child, left=True, right=False)
+
+    def grow_from_right(self, vertex_parent: Cluster, vertex_child: Cluster):
+        parent, child = self.__check_and_return_edge(vertex_parent, vertex_child)
+        self.__graph.add_edge(parent, child, left=False, right=True)
+
+    def drop_node(self, node: Union[Cluster, int]):
+
+        def __get_nodes_to_drop_recursive(node: int, nodes_to_drop: list[int]) -> list[int]:
+
+            node: int = self.__check_and_convert_node(node)
+            edges = list(self.__graph.edges.data())
+
+            for parent, child, _ in edges:
+                if parent == node:
+                    if len(self.parents(child)) == 1:
+                        nodes_to_drop += __get_nodes_to_drop_recursive(child, [child])
+
+            return nodes_to_drop
+
+        nodes_to_drop = __get_nodes_to_drop_recursive(node, [node])
+
+        for node in nodes_to_drop:
+            self.__graph.remove_node(node)
+            idx_to_remove = self.__list_of_index.index(node)
+            self.__nodes.pop(idx_to_remove)
+            self.__list_of_index.pop(idx_to_remove)
+
+    def plot_tree(self, node_size: int = 1000, node_color: str = "lightgray",
+                  with_labels: bool = True, figsize: tuple[int, int] = (7, 7),
+                  title: Optional[str] = None, title_fontsize: int = 15,
+                  save_dir: Optional[str] = None):
+
+        colors = self.__assign_edge_color()
+        plt.figure(figsize=figsize)
+
+        if title is not None:
+            plt.title(title, fontsize=title_fontsize)
+
+        nx.draw(self.__graph, pos=nx.nx_agraph.graphviz_layout(self.__graph, prog='dot'), with_labels=with_labels,
+                node_size=node_size,
+                edge_color=colors)
+
+        if save_dir is not None:
+            plt.savefig(save_dir)
+
+        plt.show()
+
+
+#
+if __name__ == "__main__":
+    cluster31 = Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    cluster32 = Cluster(np.array([5, 6, 7]), Sequence(Subsequence(np.array([5, 6, 7]), datetime.date(2021, 1, 2), 4)))
+    cluster33 = Cluster(np.array([10, 11, 12]),
+                        Sequence(Subsequence(np.array([10, 11, 12]), datetime.date(2021, 1, 3), 5)))
+    cluster41 = Cluster(np.array([15, 16, 17, 18]),
+                        Sequence(Subsequence(np.array([15, 16, 17, 18]), datetime.date(2021, 1, 4), 6)))
+    cluster42 = Cluster(np.array([20, 21, 22, 23]),
+                        Sequence(Subsequence(np.array([20, 21, 22, 23]), datetime.date(2021, 1, 5), 7)))
+    cluster51 = Cluster(np.array([25, 26, 27, 28, 29]),
+                        Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+
+    tree = ClusterTree()
+    tree.assign_node(cluster31)
+    tree.assign_node(cluster32)
+    tree.assign_node(cluster33)
+    tree.assign_node(cluster41)
+    tree.assign_node(cluster42)
+    tree.assign_node(cluster51)
+
+    tree.grow_from_right(cluster31, cluster41)
+    tree.grow_from_right(cluster32, cluster42)
+    tree.grow_from_left(cluster33, cluster42)
+    tree.grow_from_right(cluster41, cluster51)
+    tree.grow_from_left(cluster42, cluster51)
+
+    # print(tree.nodes)
+    # print(len(tree.nodes))
+
+    # tree.drop_node(1)
+    tree.plot_tree(figsize=(5, 5), title="Cluster Tree")
+
+    # print(tree.graph.nodes.data()[1])
+    # print(tree.graph.nodes.data()[2])
+    # print(tree.graph.nodes.data()[3])
+    # print(type(tree.graph.nodes.data()))
+
+#     cluster_node = ClusterNode(cluster1, is_root=True)
+#     cluster_node.left = cluster2
+#     cluster_node.right = cluster3
+#     cluster_node.left.left = cluster4
+#     cluster_node.left.right = cluster5
+#     cluster_node.right = cluster6
+#     cluster_node.right.right = cluster7
+#     # print(cluster_node)
+#     print(cluster_node.right)

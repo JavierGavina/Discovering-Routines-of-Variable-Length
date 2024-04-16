@@ -1903,7 +1903,7 @@ if __name__ == "__main__":
     # time_series = pd.concat([time_series] * 10)
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
-    drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=0)
+    drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
     drgs.fit(time_series)
     drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
-                                   show_horizontal_lines=True, show_background_annotations=False, figsize=(90, 40))
+                                   show_horizontal_lines=True, show_background_annotations=False)
