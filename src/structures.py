@@ -3326,37 +3326,208 @@ class ClusterNode:
 
 
 class ClusterTree:
+    """
+    Represents a tree structure of clusters where each node is a cluster,
+    and the edges are the hierarchy relationships between the clusters.
+    Each node can have two children, the left and the right child.
+    Each child has to have hierarchy greater than the parent.
+    With this method, we can represent the hierarchy of the clusters in a tree structure
+    and see how are the clusters grown, if from the left or from the right.
+
+    Public Methods:
+    _______________
+        * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
+        * ``children(node: Union[Cluster, int]) -> list[int]``: returns the children of the node
+        * ``parents(node: Union[Cluster, int]) -> list[int]``: returns the parents of the node
+        * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
+        * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
+
+    Properties:
+    ___________
+        **Getters:**
+            * ``indexes: list[int]``: returns the list of indexes
+            * ``nodes: list[Cluster]``: returns the list of clusters
+            * ``graph: nx.classes.digraph.DiGraph``: returns the graph
+            * ``edges: nx.classes.reportviews.OutEdgeDataView``: returns the edges of the graph
+
+    Examples:
+
+            >>> subsequence1 = Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> subsequence2 = Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)
+
+            >>> sequence = Sequence(subsequence=subsequence1)
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), sequence)
+
+            >>> sequence = Sequence(subsequence=subsequence2)
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), sequence)
+
+            >>> tree = ClusterTree()
+            >>> tree.add_edge(cluster1, cluster2, is_left=True)
+
+            >>> tree.children(cluster1)
+            [1]
+
+            >>> tree.parents(cluster2)
+            [0]
+
+            >>> tree.has_children(cluster1)
+            True
+
+            >>> tree.has_parents(cluster2)
+            True
+    """
+
     def __init__(self):
         self.__graph: nx.DiGraph = nx.DiGraph()
         self.__nodes: list[Cluster] = []
         self.__list_of_index: list[int] = []
 
     @staticmethod
+    def __check_plot_params(**kwargs):
+        """
+        Checks the plot parameters
+
+        Parameters:
+            * kwargs: `dict`. The plot parameters
+
+        Raises:
+            ValueError: if the plot parameters are not valid
+
+        Examples:
+            >>> ClusterTree.__check_plot_params()
+            >>> ClusterTree.__check_plot_params(color='blue', edge_color='red')
+        """
+
+        integer_params = ["node_size", "title_fontsize"]
+        string_params = ["node_color", "title", "save_dir"]
+        tuple_params = ["figsize"]
+        boolean_params = ["with_labels"]
+
+        for key, value in kwargs.items():
+            if key in integer_params and not isinstance(value, int):
+                raise TypeError(f"{key} has to be an integer. Got {type(value).__name__} instead")
+
+            if key in string_params and not isinstance(value, str) and value is not None:
+                raise TypeError(f"{key} has to be a string. Got {type(value).__name__} instead")
+
+            if key in boolean_params and not isinstance(value, bool):
+                raise TypeError(f"{key} has to be a boolean. Got {type(value).__name__} instead")
+
+            if key in tuple_params:
+                if not isinstance(value, tuple):
+                    raise TypeError(f"{key} has to be a tuple. Got {type(value).__name__} instead")
+
+                if len(value) != 2:
+                    raise ValueError(f"{key} has to have two elements. Got {len(value)} instead")
+
+                if not all(isinstance(val, int) for val in value):
+                    raise TypeError(
+                        f"{key} has to be a tuple of integers. Got tuple[{', '.join([type(val).__name__ for val in value])}] instead")
+
+    @staticmethod
     def __convert_edges_to_list(edges: nx.classes.reportviews.OutEdgeDataView) -> list[tuple[int, int, bool]]:
+        """
+        Takes the edges and converts them to a list of tuples
+
+        Parameters:
+            * edges: `OutEdgeDataView`. The edges to convert
+
+        Returns:
+            `list[tuple[int, int, bool]]`. The list of edges as tuples
+
+        Raises:
+            TypeError: if the edges is not an instance of OutEdgeDataView
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> edges = tree.edges
+            >>> tree.__convert_edges_to_list(edges)
+            [(0, 1, True)]
+        """
+
+        # Check if the edges is an instance of OutEdgeDataView
         if not isinstance(edges, nx.classes.reportviews.OutEdgeDataView):
             raise TypeError(f"edges has to be an instance of OutEdgeDataView. Got {type(edges).__name__} instead")
 
         return list(edges)
 
     def __check_and_convert_node(self, node: Union[Cluster, int]) -> int:
+        """
+        Checks if the node is a Cluster instance or an integer.
+
+        Parameters:
+            * node: `Union[Cluster, int]`. The node to check
+
+        Returns:
+            `int`. The index of the node
+
+        Raises:
+            TypeError: if the node is not an instance of Cluster or an integer
+            IndexError: if the node is not found in the list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster = Cluster(np.array([1, 1, 1, 1]), Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)
+            >>> tree.assign_node(cluster)
+            >>> tree.__check_and_convert_node(0)
+            0
+
+            >>> tree.__check_and_convert_node(cluster)
+            0
+        """
+
+        # Check if the node is an integer or a Cluster instance
         if not isinstance(node, (Cluster, int)):
             raise TypeError(
                 f"node has to be either an integer or a Cluster instance. Got {type(node).__name__} instead")
 
+        if isinstance(node, int) and node not in self.__list_of_index:
+            raise IndexError(f"Node {node} not found in the list of clusters {self.__nodes}")
+
+        # If the node is a Cluster instance, we get the index
         if isinstance(node, Cluster):
+            # Check if the node exists in the list of clusters
             if node not in self.__nodes:
                 raise IndexError(f"Cluster {node} not found in the list of clusters {self.__nodes}")
 
+            # Get the index of the node
             idx = self.__nodes.index(node)
             return self.__list_of_index[idx]
 
         return node
 
     def __assign_edge_color(self) -> list[str]:
+        """
+        Assigns the color to the edges of the graph to visualize the hierarchy and the left and right children.
+        The left children are colored in blue, and the right children are colored in red.
+
+        Returns:
+            `list[str]`. The list of colors for the edges
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.assign_node(Cluster(np.array([7, 7, 7, 7]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 8)))
+
+            >>> tree.add_edge(1, 2, is_left=True)
+            >>> tree.add_edge(1, 3, is_left=False)
+
+            >>> tree.__assign_edge_color()
+            ['blue', 'red']
+
+        """
+        # Initialize the colors as red (assume that all the edges are right children)
         colors = ['red'] * len(self.__graph.edges)
+
+        # Get the formated edges
         left = self.__graph.edges.data("left")
         left_formatted = self.__convert_edges_to_list(left)
 
+        # Assign the color to the left children
         for idx, (parent, child, is_left) in enumerate(left_formatted):
             if is_left:
                 colors[idx] = "blue"
@@ -3364,91 +3535,467 @@ class ClusterTree:
         return colors
 
     @property
-    def indexes(self):
+    def indexes(self) -> list[int]:
+        """
+        Returns the list of indexes from the graph
+
+        Returns:
+            `list[int]`. The list of indexes
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.indexes
+            [1, 2]
+        """
+
         return self.__list_of_index
 
     @property
-    def nodes(self):
+    def nodes(self) -> list[Cluster]:
+        """
+        Returns the list of clusters from the graph
+
+        Returns:
+            `list[Cluster]`. The list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.nodes
+            [Cluster(
+                - centroid = [1, 1, 1, 1],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            ), Cluster(
+                - centroid = [5, 5, 5, 5],
+                - instances = [[5, 6, 7, 8]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 2)]
+            )]
+        """
+
         return self.__nodes
 
     @property
-    def graph(self):
+    def graph(self) -> nx.classes.digraph.DiGraph:
+        """
+        Returns the graph
+
+        Returns:
+            `DiGraph`. The graph
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.graph
+            <networkx.classes.digraph.DiGraph at 0x7f8c3c8f9d90>
+        """
+
         return self.__graph
 
     @property
     def edges(self) -> nx.classes.reportviews.OutEdgeDataView:
+        """
+        Returns the edges of the graph
+
+        Returns:
+            `OutEdgeDataView`. The edges of the graph
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> tree.edges
+            OutEdgeDataView([(0, 1, {'left': True})])
+        """
+
         return self.__graph.edges.data()
 
     def to_dictionary(self) -> dict:
+        """
+        Returns a dictionary where the keys are the index of the nodes and the values are the clusters
+
+        Returns:
+            `dict`. The graph as a dictionary
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> tree.to_dictionary()
+            {0: Cluster(
+                - centroid = [1, 1, 1, 1],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            ), 1: Cluster(
+                - centroid = [5, 5, 5, 5],
+                - instances = [[5, 6, 7, 8]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 2)]
+            )}
+        """
+
         return dict(zip(self.__list_of_index, self.__nodes))
 
-    def __check_clusters_from_edges(self, parent: Cluster, child: Cluster):
+    def __check_clusters_from_edges(self, parent: Cluster, child: Cluster) -> None:
+        """
+        Checks if the parent and child clusters are in the list of clusters and if the hierarchy is correct.
+        Also, checks if exists and edge between the parent and child clusters.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster
+            * child: `Cluster`. The child cluster
+
+        Raises:
+            IndexError: if the parent or child is not in the list of clusters
+            ValueError: if it happens some of the following cases:
+                        the parent and child are the same cluster;
+                        the child hierarchy is not the parent hierarchy + 1;
+                        the child is not a child of the parent
+        """
+
+        # Get the hierarchy from the parent and child
         parent_hierarchy = parent.length_cluster_subsequences
         child_hierarchy = child.length_cluster_subsequences
 
+        index_parent = self.get_index_from_cluster(parent)
+        index_child = self.get_index_from_cluster(child)
+
+        # Check if the parent is in the list of clusters
         if parent not in self.__nodes:
             raise IndexError(f"Cluster {parent} not found in the list of clusters")
 
+        # Check if the child is in the list of clusters
         if child not in self.__nodes:
             raise IndexError(f"Cluster {child} not found in the list of clusters")
 
+        # Check if the parent and child are the same cluster
         if parent == child:
             raise ValueError("The parent and child cannot be the same cluster")
 
+        # Check if the child hierarchy is the parent hierarchy + 1
         if child_hierarchy != parent_hierarchy + 1:
             raise ValueError(
                 f"The child hierarchy must be the parent hierarchy + 1. Expected {parent_hierarchy + 1}. Got {child_hierarchy} instead")
 
-    def __check_and_return_edge(self, parent: Union[Cluster, int], child: Union[Cluster, int]):
+        # Check if the child is a child of the parent
+        children = [child_idx for parent_idx, child_idx, _ in self.edges if parent_idx == index_parent]
+
+        # Check if the child is in the children
+
+        if index_child in children:
+            raise ValueError(f"The edge between {index_parent} and {index_child} doesn't exist")
+
+    def __check_and_return_edge(self, parent: Union[Cluster, int], child: Union[Cluster, int]) -> tuple[int, int]:
+        """
+        Checks if the parent and child are in the list of clusters and returns the index of the clusters
+
+        Parameters:
+            * parent: `Union[Cluster, int]`. The parent cluster
+            * child: `Union[Cluster, int]`. The child cluster
+
+        Returns:
+            `tuple[int, int]`. The clusters indexes from the parent and child
+
+        Raises:
+            TypeError: if the parent or child is not an instance of Cluster or an integer
+            IndexError: if the parent or child is not in the list of clusters
+            ValueError: if the parent and child are the same cluster or if the child hierarchy is not the parent hierarchy + 1
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.__check_and_return_edge(0, 1)
+            (Cluster(
+                - centroid = [1, 1, 1, 1],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            ), Cluster(
+                - centroid = [5, 5, 5, 5],
+                - instances = [[5, 6, 7, 8]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 2)]
+            ))
+        """
+
+        # Check if the parent and child are instances of Cluster or integers
         if not isinstance(parent, (int, Cluster)) or not isinstance(child, (int, Cluster)):
             raise TypeError(
                 f"The parent and child must be either an integer or a Cluster instance. Got {type(parent).__name__} and {type(child).__name__} instead")
 
+        # If the parent is a Cluster instance, we get the index
         if type(parent) != type(child):
             raise TypeError(
                 f"The parent and child must be the same type. Got {type(parent).__name__} and {type(child).__name__} instead")
 
+        # If the parent is a Cluster instance, we get the index
         if isinstance(parent, Cluster):
             self.__check_clusters_from_edges(parent, child)
             return self.get_index_from_cluster(parent), self.get_index_from_cluster(child)
 
         else:
+            # Check if the parent is in the list of clusters
             if parent not in self.__list_of_index:
                 raise IndexError(f"Index {parent} not found in the list of indexes {self.__list_of_index}")
 
+            # Check if the child is on the list of clusters
             if child not in self.__list_of_index:
                 raise IndexError(f"Index {child} not found in the list of indexes {self.__list_of_index}")
 
+            # Get the parent and child clusters indexes
             parent_clust = self.get_cluster_from_index(parent)
             child_clust = self.get_cluster_from_index(child)
 
+            # Check if the parent and child clusters are correct
             self.__check_clusters_from_edges(parent_clust, child_clust)
-            return parent_clust, child_clust
+
+            return parent, child
+
+    def __check_no_left_right_repeat(self, parent: int, is_left: bool) -> None:
+        existent_children = self.children(parent)
+        parent_clust = self.get_cluster_from_index(parent)
+        if len(existent_children) == 2:
+            raise ValueError(f"Parent {parent_clust} already has two children")
+
+        if is_left and any(self.__graph.edges[parent, child]['left'] for child in existent_children):
+            raise ValueError(f"Left child already exists for parent {parent_clust}")
+
+        if not is_left and any(not self.__graph.edges[parent, child]['left'] for child in existent_children):
+            raise ValueError(f"Right child already exists for parent {parent_clust}")
 
     def get_cluster_from_index(self, idx: int) -> Cluster:
+        """
+        Returns the cluster from the index
 
+        Parameters:
+            * idx: `int`. The index of the cluster
+
+        Returns:
+            `Cluster`. The cluster from the index
+
+        Raises:
+            TypeError: if the idx is not an integer
+            IndexError: if the index is not in the list of indexes
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.get_cluster_from_index(0)
+            Cluster(
+                - centroid = [1, 1, 1, 1],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            )
+        """
+
+        # Check if the idx is an integer
         if not isinstance(idx, int):
             raise TypeError(f"idx has to be an integer. Got {type(idx).__name__} instead")
 
+        # Check if the index is in the list of indexes
         if idx not in self.__list_of_index:
             raise IndexError(f"Index {idx} not found in the list of indexes {self.__list_of_index}")
 
+        # Get the cluster from the index
         return self.__graph.nodes.data()[idx]['cluster']
 
     def get_index_from_cluster(self, node: Cluster) -> int:
+        """
+        Returns the index from the cluster
+
+        Parameters:
+            * node: `Cluster`. The cluster to get the index
+
+        Returns:
+            `int`. The index of the cluster
+
+        Raises:
+            TypeError: if the node is not an instance of Cluster
+            IndexError: if the cluster is not in the list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.get_index_from_cluster(cluster1)
+            0
+        """
+
+        # Check if the node is an instance of Cluster and if the cluster is in the list of clusters
         node_index = self.__check_and_convert_node(node)
         return node_index
 
     def children(self, node: Union[Cluster, int]) -> list[int]:
+        """
+        Returns the index of clusters from the children of the node
+
+        Parameters:
+            * node: `Union[Cluster, int]`. The node to get the children
+
+        Returns:
+            `list[int]`. The indexes of the children clusters
+
+        Raises:
+            TypeError: if the node is not an instance of Cluster or an integer
+            IndexError: if the node is not in the list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> cluster3 = Cluster(np.array([7, 7, 7, 7]), Sequence(Subsequence(np.array([9, 10, 11, 12]), datetime.date(2021, 1, 3), 8)))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+            >>> tree.assign_node(cluster3)
+
+            >>> tree.add_edge(1, 2, is_left=True)
+            >>> tree.add_edge(1, 3, is_left=False)
+
+            >>> tree.children(1)
+            [2, 3]
+        """
+
+        # Check and convert the node to index
         node = self.__check_and_convert_node(node)
+
+        # Get the edges from the graph
         edges = list(self.edges)
+
+        # Get the children from the node
         children = [child for parent, child, _ in edges if parent == node]
 
         return children
 
-    def parents(self, node: Union[Cluster, int]) -> list[int]:
-        node = self.__check_and_convert_node(node)
+    def is_child(self, parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool:
+        """
+        Indicating the parent and child nodes, returns if the child is a child from the parent
+
+        Parameters:
+            * parent: `Union[Cluster, int]`. The parent node
+            * child: `Union[Cluster, int]`. The child node
+
+        Returns:
+            `bool`. `True` if the child is a child from the parent, `False` otherwise
+
+        Raises:
+            TypeError: if the parent or child is not an instance of Cluster or an integer
+            IndexError: if the parent or child is not in the list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> tree.is_child(0, 1)
+            True
+
+            >>> tree.is_child(1, 0)
+            False
+        """
+
+        # Initialize the variable
+        is_child_value = False
+
+        # Check and convert the parent and child to index
+        parent, child = self.__check_and_return_edge(parent, child)
+
+        # Get the edges from the graph
         edges = list(self.edges)
+
+        # Get the children from the parent
+        children = [child for parent_idx, child_idx, _ in edges if parent_idx == parent]
+
+        # Check if the child is in the children
+        if child in children:
+            is_child_value = True
+
+        return is_child_value
+
+    def is_left_child(self, parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool:
+        """
+        Indicating the parent and child nodes, returns if the child is the left child from the parent
+
+        Parameters:
+            * parent: `Union[Cluster, int]`. The parent node
+            * child: `Union[Cluster, int]`. The child node
+
+        Returns:
+            `bool`. `True` if the child is the left child from the parent, `False` if right
+
+        Raises:
+            TypeError: if the parent or child is not an instance of Cluster or an integer
+            IndexError: if the parent or child is not in the list of clusters
+            ValueError: if the child is not a child from the parent
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> tree.is_left_child(0, 1)
+            True
+        """
+
+        # Check and convert the parent and child to index
+        parent, child = self.__check_and_return_edge(parent, child)
+
+        # If the child is not a child from the parent, we raise a ValueError
+        if not self.is_child(parent, child):
+            raise ValueError(f"The child {child} is not a child from the parent {parent}")
+
+        # Get the edges from the graph
+        edges = list(self.edges)
+
+        # Get the left parameter from the child
+        for parent_idx, child_idx, is_left in edges:
+            if parent_idx == parent and child_idx == child:
+                return is_left
+
+    def parents(self, node: Union[Cluster, int]) -> list[int]:
+        # Check and convert the node to index
+        node = self.__check_and_convert_node(node)
+
+        # Get the edges from the graph
+        edges = list(self.edges)
+
+        # Get the parents from the node
         parents = [parent for parent, child, _ in edges if child == node]
         return parents
 
@@ -3472,35 +4019,92 @@ class ClusterTree:
         self.__nodes.append(cluster)
         self.__list_of_index.append(idx_to_add)
 
-    def grow_from_left(self, vertex_parent: Union[Cluster, int], vertex_child: Union[Cluster, int]) -> None:
-
+    def add_edge(self, vertex_parent: Union[Cluster, int], vertex_child: Union[Cluster, int], is_left: bool) -> None:
+        # Check the validity of the parent and child clusters
         parent, child = self.__check_and_return_edge(vertex_parent, vertex_child)
-        self.__graph.add_edge(parent, child, left=True, right=False)
 
-    def grow_from_right(self, vertex_parent: Cluster, vertex_child: Cluster):
-        parent, child = self.__check_and_return_edge(vertex_parent, vertex_child)
-        self.__graph.add_edge(parent, child, left=False, right=True)
+        # Check if the parent already has two and only one left and right child
+        self.__check_no_left_right_repeat(parent, is_left)
+
+        # Add the edge to the graph
+        self.__graph.add_edge(parent, child, left=is_left)
 
     def drop_node(self, node: Union[Cluster, int]):
+        """
+        Drops the node from the graph and those nodes that depends on it
+        (children that has no more parents than the dropped node)
+
+        Parameters:
+            * node: `Union[Cluster, int]`. The node to drop
+
+        Raises:
+            TypeError: if the node is not an instance of Cluster or an integer
+            IndexError: if the node is not in the list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+            >>> cluster2 = Cluster(np.array([5, 6, 7, 8]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> cluster3 = Cluster(np.array([10, 11, 12, 13]), Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
+            >>> cluster4 = Cluster(np.array([15, 16, 17, 18, 19]), Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
+            >>> cluster5 = Cluster(np.array([20, 21, 22, 23, 24]), Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
+            >>> cluster6 = Cluster(np.array([25, 26, 27, 28, 29]), Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+            >>> cluster7 = Cluster(np.array([30, 31, 32, 33, 34]), Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+            >>> tree.assign_node(cluster3)
+            >>> tree.assign_node(cluster4)
+            >>> tree.assign_node(cluster5)
+            >>> tree.assign_node(cluster6)
+            >>> tree.assign_node(cluster7)
+
+            >>> tree.add_edge(1, 2, is_left=True)
+            >>> tree.add_edge(1, 3, is_left=False)
+            >>> tree
+
+        """
+        # Check if the node is an instance of Cluster or an integer
+        node = self.__check_and_convert_node(node)
 
         def __get_nodes_to_drop_recursive(node: int, nodes_to_drop: list[int]) -> list[int]:
+            """
+            Gets the nodes to drop recursively
 
+            Parameters:
+                * node: `int`. The node to drop
+                * nodes_to_drop: `list[int]`. The list of nodes to drop
+
+            Returns:
+                `list[int]`. The list of nodes to drop recursively
+            """
+
+            # Get the node and edges
             node: int = self.__check_and_convert_node(node)
             edges = list(self.__graph.edges.data())
 
+            # Get the nodes to drop recursively for those children that have only the node as parent
             for parent, child, _ in edges:
+                # If the parent is the node, we check if the child has only one parent
                 if parent == node:
                     if len(self.parents(child)) == 1:
+                        # If the child has only one parent, we add it to the list of nodes to drop
                         nodes_to_drop += __get_nodes_to_drop_recursive(child, [child])
 
             return nodes_to_drop
 
+        # Get the nodes to drop recursively
         nodes_to_drop = __get_nodes_to_drop_recursive(node, [node])
 
         for node in nodes_to_drop:
+            # Remove the node from the graph
             self.__graph.remove_node(node)
+
+            # Remove the node from the list of nodes
             idx_to_remove = self.__list_of_index.index(node)
             self.__nodes.pop(idx_to_remove)
+
+            # Remove the index from the list of indexes
             self.__list_of_index.pop(idx_to_remove)
 
     def plot_tree(self, node_size: int = 1000, node_color: str = "lightgray",
@@ -3508,66 +4112,152 @@ class ClusterTree:
                   title: Optional[str] = None, title_fontsize: int = 15,
                   save_dir: Optional[str] = None):
 
-        colors = self.__assign_edge_color()
+        """
+        Plots the tree with the left and right children colored in blue and red, respectively.
+        Each level on the tree corresponds to a hierarchy level of the clusters.
+
+        Parameters:
+            * node_size: `int`. The size of the nodes
+            * node_color: `str`. The color of the nodes
+            * with_labels: `bool`. If True, the labels are shown
+            * figsize: `tuple[int, int]`. The size of the figure
+            * title: `Optional[str]`. The title of the plot
+            * title_fontsize: `int`. The fontsize of the title
+            * save_dir: `Optional[str]`. The directory to save the plot
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 6, 7, 8]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> cluster3 = Cluster(np.array([10, 11, 12, 13]), Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+            >>> tree.assign_node(cluster3)
+
+            >>> tree.add_edge(1, 2, is_left=True)
+            >>> tree.add_edge(1, 3, is_left=False)
+        """
+
+        # Check the validity of the plot parameters
+        args = locals()
+        self.__check_plot_params(**args)
+
+        # Assign the colors to the edges
+        colors_edges = self.__assign_edge_color()
+
+        # Initialize the figure
         plt.figure(figsize=figsize)
 
+        # Add the title if it is indicated
         if title is not None:
             plt.title(title, fontsize=title_fontsize)
 
+        # Plot the graph
         nx.draw(self.__graph, pos=nx.nx_agraph.graphviz_layout(self.__graph, prog='dot'), with_labels=with_labels,
-                node_size=node_size,
-                edge_color=colors)
+                node_size=node_size, node_color=node_color, edge_color=colors_edges)
 
+        # Save the plot if it is indicated
         if save_dir is not None:
             plt.savefig(save_dir)
 
+        # Show the plot
         plt.show()
 
 
-#
 if __name__ == "__main__":
-    cluster31 = Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-    cluster32 = Cluster(np.array([5, 6, 7]), Sequence(Subsequence(np.array([5, 6, 7]), datetime.date(2021, 1, 2), 4)))
-    cluster33 = Cluster(np.array([10, 11, 12]),
-                        Sequence(Subsequence(np.array([10, 11, 12]), datetime.date(2021, 1, 3), 5)))
-    cluster41 = Cluster(np.array([15, 16, 17, 18]),
-                        Sequence(Subsequence(np.array([15, 16, 17, 18]), datetime.date(2021, 1, 4), 6)))
-    cluster42 = Cluster(np.array([20, 21, 22, 23]),
-                        Sequence(Subsequence(np.array([20, 21, 22, 23]), datetime.date(2021, 1, 5), 7)))
-    cluster51 = Cluster(np.array([25, 26, 27, 28, 29]),
-                        Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
 
-    tree = ClusterTree()
-    tree.assign_node(cluster31)
-    tree.assign_node(cluster32)
-    tree.assign_node(cluster33)
-    tree.assign_node(cluster41)
-    tree.assign_node(cluster42)
-    tree.assign_node(cluster51)
+    for x in range(1, 8):
+        cluster1 = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+        cluster2 = Cluster(np.array([5, 6, 7, 8]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+        cluster3 = Cluster(np.array([10, 11, 12, 13]), Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
+        cluster4 = Cluster(np.array([15, 16, 17, 18, 19]), Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
+        cluster5 = Cluster(np.array([20, 21, 22, 23, 24]), Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
+        cluster6 = Cluster(np.array([25, 26, 27, 28, 29]), Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+        cluster7 = Cluster(np.array([30, 31, 32, 33, 34]), Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
 
-    tree.grow_from_right(cluster31, cluster41)
-    tree.grow_from_right(cluster32, cluster42)
-    tree.grow_from_left(cluster33, cluster42)
-    tree.grow_from_right(cluster41, cluster51)
-    tree.grow_from_left(cluster42, cluster51)
+        tree = ClusterTree()
+        tree.assign_node(cluster1)
+        tree.assign_node(cluster2)
+        tree.assign_node(cluster3)
+        tree.assign_node(cluster4)
+        tree.assign_node(cluster5)
+        tree.assign_node(cluster6)
+        tree.assign_node(cluster7)
 
-    # print(tree.nodes)
-    # print(len(tree.nodes))
+        tree.add_edge(1, 2, is_left=True)
+        tree.add_edge(1, 3, is_left=False)
+        tree.add_edge(2, 4, is_left=True)
+        tree.add_edge(2, 5, is_left=False)
+        tree.add_edge(3, 6, is_left=True)
+        tree.add_edge(3, 7, is_left=False)
 
-    # tree.drop_node(1)
-    tree.plot_tree(figsize=(5, 5), title="Cluster Tree")
+        tree.drop_node(x)
+        tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
 
-    # print(tree.graph.nodes.data()[1])
-    # print(tree.graph.nodes.data()[2])
-    # print(tree.graph.nodes.data()[3])
-    # print(type(tree.graph.nodes.data()))
+    # cluster1 = Cluster(np.array([1, 2, 3]),
+    #                    Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    # cluster2 = Cluster(np.array([5, 6, 7, 8]),
+    #                    Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+    # cluster3 = Cluster(np.array([10, 11, 12, 13]),
+    #                    Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
+    # cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
+    #                    Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
+    # cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
+    #                    Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
+    # cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
+    #                    Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+    # cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
+    #                    Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
+    #
+    # tree = ClusterTree()
+    # tree.assign_node(cluster1)
+    # tree.assign_node(cluster2)
+    # tree.assign_node(cluster3)
+    # tree.assign_node(cluster4)
+    # tree.assign_node(cluster5)
+    # tree.assign_node(cluster6)
+    # tree.assign_node(cluster7)
+    #
+    # tree.add_edge(1, 2, is_left=True)
+    # tree.add_edge(1, 3, is_left=False)
+    # tree.add_edge(2, 4, is_left=True)
+    # tree.add_edge(2, 5, is_left=False)
+    # tree.add_edge(3, 6, is_left=True)
+    # tree.add_edge(3, 7, is_left=False)
+    #
+    # for x in reversed(range(0, 8)):
+    #
+    #     tree.drop_node(x)
+    #     tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
 
-#     cluster_node = ClusterNode(cluster1, is_root=True)
-#     cluster_node.left = cluster2
-#     cluster_node.right = cluster3
-#     cluster_node.left.left = cluster4
-#     cluster_node.left.right = cluster5
-#     cluster_node.right = cluster6
-#     cluster_node.right.right = cluster7
-#     # print(cluster_node)
-#     print(cluster_node.right)
+    # for x in range(1, 7):
+    #     cluster31 = Cluster(np.array([3, 4, 5]),
+    #                         Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    #     cluster32 = Cluster(np.array([5, 6, 7]),
+    #                         Sequence(Subsequence(np.array([5, 6, 7]), datetime.date(2021, 1, 2), 4)))
+    #     cluster33 = Cluster(np.array([10, 11, 12]),
+    #                         Sequence(Subsequence(np.array([10, 11, 12]), datetime.date(2021, 1, 3), 5)))
+    #     cluster41 = Cluster(np.array([15, 16, 17, 18]),
+    #                         Sequence(Subsequence(np.array([15, 16, 17, 18]), datetime.date(2021, 1, 4), 6)))
+    #     cluster42 = Cluster(np.array([20, 21, 22, 23]),
+    #                         Sequence(Subsequence(np.array([20, 21, 22, 23]), datetime.date(2021, 1, 5), 7)))
+    #     cluster51 = Cluster(np.array([25, 26, 27, 28, 29]),
+    #                         Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+    #
+    #     tree = ClusterTree()
+    #     tree.assign_node(cluster31)
+    #     tree.assign_node(cluster32)
+    #     tree.assign_node(cluster33)
+    #     tree.assign_node(cluster41)
+    #     tree.assign_node(cluster42)
+    #     tree.assign_node(cluster51)
+    #
+    #     tree.add_edge(cluster31, cluster41, is_left=False)
+    #     tree.add_edge(cluster32, cluster42, is_left=False)
+    #     tree.add_edge(cluster33, cluster42, is_left=True)
+    #     tree.add_edge(cluster41, cluster51, is_left=False)
+    #     tree.add_edge(cluster42, cluster51, is_left=True)
+    #
+    #     tree.drop_node(x)
+    #     tree.plot_tree(figsize=(5, 5), title=f"Drop {x}", save_dir=f"../figs/drop_node_{x}.png")

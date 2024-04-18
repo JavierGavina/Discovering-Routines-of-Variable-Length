@@ -1690,6 +1690,7 @@ class DRGS(DRFL):
 
             # Remove repeated clusters
             unique_routines = routines_l_k.drop_duplicates()
+            # unique_routines = routines_l_k
 
             # Union for the left and right routines from the actual hierarchy
             self.__hierarchical_routines.add_routine(unique_routines)
