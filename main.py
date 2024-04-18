@@ -163,64 +163,64 @@ if __name__ == "__main__":
 
     # PARALLEL SEARCH WITH COMPLICATED TIME SERIES
 
-    args = argparser.parse_args()
-    df = load_data(args.data_dir)
-    correspondencies = obtain_correspondencies(args.dictionary_dir)
-    feat_extraction = feature_extraction(df, correspondencies)
-    time_series = get_time_series(feat_extraction, "gym")
-
-    R_params = [x for x in range(20, 70, 10)]
-    C_params = [x for x in range(5, 9)]
-    G_params = [x for x in range(20, 100, 10)]
-    # L_params = [x for x in range(20, 80, 10)]
-
-    target_centroids = [[28, 0, 44, 0, 125, 11, 0], [79, 0, 47, 0, 66, 118, 0]]
-    params = list(product(R_params, C_params, G_params, [1], [0]))
-    alpha, sigma = 0.6, 4
-
-    # Sequential search
-    st = time.time()
-    result = []
-    for R, C, G, epsilon, L in params:
-        drfl = DRFL(7, R, C, G, epsilon, L)
-        drfl.fit(time_series)
-        mean_distance = drfl.estimate_distance(target_centroids, alpha, sigma)
-        result.append({"R": R, "C": C, "G": G, "epsilon": epsilon, "L": L, "mean_distance": mean_distance})
-
-    print(f"Elapsed sequential time: {time.time() - st}")
-
-    param_grid = {'m': 7, 'R': R_params, 'C': C_params, 'G': G_params, 'epsilon': [1], 'L': [0]}
-
-    # Parallel search: comparing time
-    st = time.time()
-    mDRFL = ParallelSearchDRFL(n_jobs=1, alpha=alpha, sigma=sigma, param_grid=param_grid)
-    mDRFL.search_best(time_series, target_centroids=target_centroids)
-    print(f"Elapsed time workers=1: {time.time() - st}")
-
-    st = time.time()
-    mDRFL = ParallelSearchDRFL(n_jobs=5, alpha=alpha, sigma=sigma, param_grid=param_grid)
-    mDRFL.search_best(time_series, target_centroids=target_centroids)
-    print(f"Elapsed time workers=5: {time.time() - st}")
-
-    st = time.time()
-    mDRFL = ParallelSearchDRFL(n_jobs=10, alpha=alpha, sigma=sigma, param_grid=param_grid)
-    mDRFL.search_best(time_series, target_centroids=target_centroids)
-    print(f"Elapsed time workers=10: {time.time() - st}")
-
-    st = time.time()
-    mDRFL = ParallelSearchDRFL(n_jobs=cpu_count() - 2, alpha=alpha, sigma=sigma,  param_grid=param_grid)
-    mDRFL.search_best(time_series, target_centroids=target_centroids)
-    print(f"Elapsed time workers={cpu_count() - 2}: {time.time() - st}")
-
-    # Results
-    results = mDRFL.cv_results()
-    best_params = mDRFL.best_params()
-    top = results.head()
-    print(top)
-
-    best_drfl = DRFL(7, best_params["R"], best_params["C"], best_params["G"], best_params["epsilon"], best_params["L"])
-    best_drfl.fit(time_series)
-    best_drfl.show_results()
-    best_drfl.plot_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
-                           yticks_fontsize=20, figsize=(45, 20),
-                           linewidth_bars=2)
+    # args = argparser.parse_args()
+    # df = load_data(args.data_dir)
+    # correspondencies = obtain_correspondencies(args.dictionary_dir)
+    # feat_extraction = feature_extraction(df, correspondencies)
+    # time_series = get_time_series(feat_extraction, "gym")
+    #
+    # R_params = [x for x in range(20, 70, 10)]
+    # C_params = [x for x in range(5, 9)]
+    # G_params = [x for x in range(20, 100, 10)]
+    # # L_params = [x for x in range(20, 80, 10)]
+    #
+    # target_centroids = [[28, 0, 44, 0, 125, 11, 0], [79, 0, 47, 0, 66, 118, 0]]
+    # params = list(product(R_params, C_params, G_params, [1], [0]))
+    # alpha, sigma = 0.6, 4
+    #
+    # # Sequential search
+    # st = time.time()
+    # result = []
+    # for R, C, G, epsilon, L in params:
+    #     drfl = DRFL(7, R, C, G, epsilon, L)
+    #     drfl.fit(time_series)
+    #     mean_distance = drfl.estimate_distance(target_centroids, alpha, sigma)
+    #     result.append({"R": R, "C": C, "G": G, "epsilon": epsilon, "L": L, "mean_distance": mean_distance})
+    #
+    # print(f"Elapsed sequential time: {time.time() - st}")
+    #
+    # param_grid = {'m': 7, 'R': R_params, 'C': C_params, 'G': G_params, 'epsilon': [1], 'L': [0]}
+    #
+    # # Parallel search: comparing time
+    # st = time.time()
+    # mDRFL = ParallelSearchDRFL(n_jobs=1, alpha=alpha, sigma=sigma, param_grid=param_grid)
+    # mDRFL.search_best(time_series, target_centroids=target_centroids)
+    # print(f"Elapsed time workers=1: {time.time() - st}")
+    #
+    # st = time.time()
+    # mDRFL = ParallelSearchDRFL(n_jobs=5, alpha=alpha, sigma=sigma, param_grid=param_grid)
+    # mDRFL.search_best(time_series, target_centroids=target_centroids)
+    # print(f"Elapsed time workers=5: {time.time() - st}")
+    #
+    # st = time.time()
+    # mDRFL = ParallelSearchDRFL(n_jobs=10, alpha=alpha, sigma=sigma, param_grid=param_grid)
+    # mDRFL.search_best(time_series, target_centroids=target_centroids)
+    # print(f"Elapsed time workers=10: {time.time() - st}")
+    #
+    # st = time.time()
+    # mDRFL = ParallelSearchDRFL(n_jobs=cpu_count() - 2, alpha=alpha, sigma=sigma,  param_grid=param_grid)
+    # mDRFL.search_best(time_series, target_centroids=target_centroids)
+    # print(f"Elapsed time workers={cpu_count() - 2}: {time.time() - st}")
+    #
+    # # Results
+    # results = mDRFL.cv_results()
+    # best_params = mDRFL.best_params()
+    # top = results.head()
+    # print(top)
+    #
+    # best_drfl = DRFL(7, best_params["R"], best_params["C"], best_params["G"], best_params["epsilon"], best_params["L"])
+    # best_drfl.fit(time_series)
+    # best_drfl.show_results()
+    # best_drfl.plot_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
+    #                        yticks_fontsize=20, figsize=(45, 20),
+    #                        linewidth_bars=2)

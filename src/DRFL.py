@@ -2031,7 +2031,8 @@ if __name__ == "__main__":
     drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
     drgs.fit(time_series)
     drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
-                                   show_horizontal_lines=True, show_background_annotations=True, show_xticks=False)
+                                   show_horizontal_lines=True, show_background_annotations=True, show_xticks=False,
+                                   save_dir="../figs/routines_detected.png")
 
     cluster_tree = drgs.convert_to_cluster_tree()
-    cluster_tree.plot_tree()
+    cluster_tree.plot_tree(save_dir="../figs/routines_detected_tree.png")

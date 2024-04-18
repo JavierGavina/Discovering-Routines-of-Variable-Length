@@ -339,9 +339,10 @@ import datetime
 from typing import Union, Optional, Iterator
 
 import matplotlib.pyplot as plt
-import re
+import matplotlib.cm as cm
 
 import copy
+
 
 
 class Subsequence:
@@ -3295,6 +3296,112 @@ class ClusterTree:
         self.__nodes: list[Cluster] = []
         self.__list_of_index: list[int] = []
 
+    @property
+    def indexes(self) -> list[int]:
+        """
+        Returns the list of indexes from the graph
+
+        Returns:
+            `list[int]`. The list of indexes
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.indexes
+            [1, 2]
+        """
+
+        return self.__list_of_index
+
+    @property
+    def nodes(self) -> list[Cluster]:
+        """
+        Returns the list of clusters from the graph
+
+        Returns:
+            `list[Cluster]`. The list of clusters
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+
+            >>> tree.assign_node(cluster1)
+            >>> tree.assign_node(cluster2)
+
+            >>> tree.nodes
+            [Cluster(
+                - centroid = [1, 1, 1, 1],
+                - instances = [[1, 2, 3, 4]]
+                - starting_points = [0]
+                - dates = [datetime.date(2021, 1, 1)]
+            ), Cluster(
+                - centroid = [5, 5, 5, 5],
+                - instances = [[5, 6, 7, 8]]
+                - starting_points = [4]
+                - dates = [datetime.date(2021, 1, 2)]
+            )]
+        """
+
+        return self.__nodes
+
+    @property
+    def graph(self) -> nx.classes.digraph.DiGraph:
+        """
+        Returns the graph
+
+        Returns:
+            `DiGraph`. The graph
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.graph
+            <networkx.classes.digraph.DiGraph at 0x7f8c3c8f9d90>
+        """
+
+        return self.__graph
+
+    @property
+    def edges(self) -> nx.classes.reportviews.OutEdgeDataView:
+        """
+        Returns the edges of the graph
+
+        Returns:
+            `OutEdgeDataView`. The edges of the graph
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.add_edge(0, 1, is_left=True)
+            >>> tree.edges
+            OutEdgeDataView([(0, 1, {'left': True})])
+        """
+
+        return self.__graph.edges.data()
+
+    @property
+    def hierarchies(self) -> list[int]:
+        """
+        Returns the list of hierarchies from the graph
+
+        Returns:
+            `list[int]`. The list of hierarchies
+
+        Examples:
+            >>> tree = ClusterTree()
+            >>> tree.assign_node(Cluster(np.array([4, 4, 4, 4]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
+            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 4)))
+            >>> tree.hierarchies
+            [4, 5]
+        """
+
+        hierarchies = [cluster.length_cluster_subsequences for cluster in self.__nodes]
+        return list(set(hierarchies))
+
     @staticmethod
     def __check_plot_params(**kwargs):
         """
@@ -3312,7 +3419,7 @@ class ClusterTree:
         """
 
         integer_params = ["node_size", "title_fontsize"]
-        string_params = ["node_color", "title", "save_dir"]
+        string_params = [ "title", "save_dir"]
         tuple_params = ["figsize"]
         boolean_params = ["with_labels"]
 
@@ -3447,92 +3554,56 @@ class ClusterTree:
 
         return colors
 
-    @property
-    def indexes(self) -> list[int]:
+    def __assign_nodes_color(self) -> list[np.ndarray]:
+        available_hierarchies = self.hierarchies
+        n_clusters = [len(self.get_nodes_with_hierarchy(hier)) for hier in available_hierarchies]
+        n_max = max(n_clusters)
+        base_colors = cm.rainbow(np.linspace(0, 1, n_max))
+        colors = []
+        for hier in available_hierarchies:
+            clusters = self.get_nodes_with_hierarchy(hier)
+            for cluster in clusters:
+                idx = clusters.index(cluster)
+                colors.append(base_colors[idx])
+
+        return list(colors)
+
+    def __assign_labels(self) -> dict:
+        labels = []
+        available_hierarchies = self.hierarchies
+        for hierarchy in available_hierarchies:
+            clusters = self.get_nodes_with_hierarchy(hierarchy)
+            for k in range(len(clusters)):
+                labels.append(f"{hierarchy}-{k+1}")
+
+        return {node: label for node, label in zip(self.__list_of_index, labels)}
+
+    def get_nodes_with_hierarchy(self, hierarchy: int) -> list[Cluster]:
         """
-        Returns the list of indexes from the graph
+        Returns the list of clusters with the specified hierarchy
+
+        Parameters:
+            * hierarchy: `int`. The hierarchy of the clusters
 
         Returns:
-            `list[int]`. The list of indexes
-
-        Examples:
-            >>> tree = ClusterTree()
-            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
-            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-            >>> tree.indexes
-            [1, 2]
+            `list[Cluster]`. The list of clusters with the specified hierarchy
         """
+        available_hierarchies = self.hierarchies
 
-        return self.__list_of_index
+        # Check if the hierarchy is an integer
+        if not isinstance(hierarchy, int):
+            raise TypeError(f"hierarchy has to be an integer. Got {type(hierarchy).__name__} instead")
 
-    @property
-    def nodes(self) -> list[Cluster]:
-        """
-        Returns the list of clusters from the graph
+        # Check if the hierarchy exists
+        if hierarchy not in available_hierarchies:
+            raise IndexError(f"Hierarchy {hierarchy} not found in the available hierarchies {available_hierarchies}")
 
-        Returns:
-            `list[Cluster]`. The list of clusters
+        list_cluster = []
+        for cluster in self.__nodes:
+            if cluster.length_cluster_subsequences == hierarchy:
+                list_cluster.append(cluster)
 
-        Examples:
-            >>> tree = ClusterTree()
-            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-
-            >>> tree.assign_node(cluster1)
-            >>> tree.assign_node(cluster2)
-
-            >>> tree.nodes
-            [Cluster(
-                - centroid = [1, 1, 1, 1],
-                - instances = [[1, 2, 3, 4]]
-                - starting_points = [0]
-                - dates = [datetime.date(2021, 1, 1)]
-            ), Cluster(
-                - centroid = [5, 5, 5, 5],
-                - instances = [[5, 6, 7, 8]]
-                - starting_points = [4]
-                - dates = [datetime.date(2021, 1, 2)]
-            )]
-        """
-
-        return self.__nodes
-
-    @property
-    def graph(self) -> nx.classes.digraph.DiGraph:
-        """
-        Returns the graph
-
-        Returns:
-            `DiGraph`. The graph
-
-        Examples:
-            >>> tree = ClusterTree()
-            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
-            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-            >>> tree.graph
-            <networkx.classes.digraph.DiGraph at 0x7f8c3c8f9d90>
-        """
-
-        return self.__graph
-
-    @property
-    def edges(self) -> nx.classes.reportviews.OutEdgeDataView:
-        """
-        Returns the edges of the graph
-
-        Returns:
-            `OutEdgeDataView`. The edges of the graph
-
-        Examples:
-            >>> tree = ClusterTree()
-            >>> tree.assign_node(Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0)))
-            >>> tree.assign_node(Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-            >>> tree.add_edge(0, 1, is_left=True)
-            >>> tree.edges
-            OutEdgeDataView([(0, 1, {'left': True})])
-        """
-
-        return self.__graph.edges.data()
+        return list_cluster
 
     def to_dictionary(self) -> dict:
         """
@@ -3890,8 +3961,6 @@ class ClusterTree:
         parent, child = self.__check_and_return_edge(parent, child)
 
         # If the child is not a child from the parent, we raise a ValueError
-        print(f"Parent: {parent}, Child: {child}, Children: {self.children(parent)}")
-        print(f"Parent: {parent}, Child: {child}")
         if not self.is_child(parent, child):
             raise ValueError(f"The child {child} is not a child from the parent {parent}")
 
@@ -4017,13 +4086,13 @@ class ClusterTree:
 
             # Remove the node from the list of nodes
             idx_to_remove = self.__list_of_index.index(node)
-            self.__nodes.pop(idx_to_remove)
+            self.__nodes = [node for idx, node in enumerate(self.__nodes) if idx != idx_to_remove]
 
             # Remove the index from the list of indexes
-            self.__list_of_index.pop(idx_to_remove)
+            self.__list_of_index = [idx for idx in self.__list_of_index if idx != node]
 
-    def plot_tree(self, node_size: int = 1000, node_color: str = "lightgray",
-                  with_labels: bool = True, figsize: tuple[int, int] = (7, 7),
+    def plot_tree(self, node_size: int = 1000, with_labels: bool = True,
+                  figsize: tuple[int, int] = (7, 7),
                   title: Optional[str] = None, title_fontsize: int = 15,
                   save_dir: Optional[str] = None):
 
@@ -4033,7 +4102,6 @@ class ClusterTree:
 
         Parameters:
             * node_size: `int`. The size of the nodes
-            * node_color: `str`. The color of the nodes
             * with_labels: `bool`. If True, the labels are shown
             * figsize: `tuple[int, int]`. The size of the figure
             * title: `Optional[str]`. The title of the plot
@@ -4058,8 +4126,12 @@ class ClusterTree:
         args = locals()
         self.__check_plot_params(**args)
 
-        # Assign the colors to the edges
+        # Assign the colors to the nodes and edges
         colors_edges = self.__assign_edge_color()
+        colors_nodes = self.__assign_nodes_color()
+
+        # Get the labels
+        labels = self.__assign_labels()
 
         # Initialize the figure
         plt.figure(figsize=figsize)
@@ -4070,7 +4142,8 @@ class ClusterTree:
 
         # Plot the graph
         nx.draw(self.__graph, pos=nx.nx_agraph.graphviz_layout(self.__graph, prog='dot'), with_labels=with_labels,
-                node_size=node_size, node_color=node_color, edge_color=colors_edges)
+                node_size=node_size, node_color=colors_nodes, edge_color=colors_edges,
+                labels=labels)
 
         # Save the plot if it is indicated
         if save_dir is not None:
@@ -4082,64 +4155,72 @@ class ClusterTree:
 
 if __name__ == "__main__":
 
-    for x in range(1, 8):
-        cluster1 = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-        cluster2 = Cluster(np.array([5, 6, 7, 8]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-        cluster3 = Cluster(np.array([10, 11, 12, 13]), Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
-        cluster4 = Cluster(np.array([15, 16, 17, 18, 19]), Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
-        cluster5 = Cluster(np.array([20, 21, 22, 23, 24]), Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
-        cluster6 = Cluster(np.array([25, 26, 27, 28, 29]), Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
-        cluster7 = Cluster(np.array([30, 31, 32, 33, 34]), Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
-
-        tree = ClusterTree()
-        tree.assign_node(cluster1)
-        tree.assign_node(cluster2)
-        tree.assign_node(cluster3)
-        tree.assign_node(cluster4)
-        tree.assign_node(cluster5)
-        tree.assign_node(cluster6)
-        tree.assign_node(cluster7)
-
-        tree.add_edge(1, 2, is_left=True)
-        tree.add_edge(1, 3, is_left=False)
-        tree.add_edge(2, 4, is_left=True)
-        tree.add_edge(2, 5, is_left=False)
-        tree.add_edge(3, 6, is_left=True)
-        tree.add_edge(3, 7, is_left=False)
-
-        tree.drop_node(x)
-        tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
-
-    # cluster1 = Cluster(np.array([1, 2, 3]),
-    #                    Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-    # cluster2 = Cluster(np.array([5, 6, 7, 8]),
-    #                    Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-    # cluster3 = Cluster(np.array([10, 11, 12, 13]),
-    #                    Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
-    # cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
-    #                    Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
-    # cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
-    #                    Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
-    # cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
-    #                    Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
-    # cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
-    #                    Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
+    # for x in range(1, 8):
+    #     cluster1 = Cluster(np.array([1, 2, 3]),
+    #                        Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    #     cluster2 = Cluster(np.array([5, 6, 7, 8]),
+    #                        Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+    #     cluster3 = Cluster(np.array([10, 11, 12, 13]),
+    #                        Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
+    #     cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
+    #                        Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
+    #     cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
+    #                        Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
+    #     cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
+    #                        Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+    #     cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
+    #                        Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
     #
-    # tree = ClusterTree()
-    # tree.assign_node(cluster1)
-    # tree.assign_node(cluster2)
-    # tree.assign_node(cluster3)
-    # tree.assign_node(cluster4)
-    # tree.assign_node(cluster5)
-    # tree.assign_node(cluster6)
-    # tree.assign_node(cluster7)
+    #     tree = ClusterTree()
+    #     tree.assign_node(cluster1)
+    #     tree.assign_node(cluster2)
+    #     tree.assign_node(cluster3)
+    #     tree.assign_node(cluster4)
+    #     tree.assign_node(cluster5)
+    #     tree.assign_node(cluster6)
+    #     tree.assign_node(cluster7)
     #
-    # tree.add_edge(1, 2, is_left=True)
-    # tree.add_edge(1, 3, is_left=False)
-    # tree.add_edge(2, 4, is_left=True)
-    # tree.add_edge(2, 5, is_left=False)
-    # tree.add_edge(3, 6, is_left=True)
-    # tree.add_edge(3, 7, is_left=False)
+    #     tree.add_edge(1, 2, is_left=True)
+    #     tree.add_edge(1, 3, is_left=False)
+    #     tree.add_edge(2, 4, is_left=True)
+    #     tree.add_edge(2, 5, is_left=False)
+    #     tree.add_edge(3, 6, is_left=True)
+    #     tree.add_edge(3, 7, is_left=False)
+    #
+    #     tree.drop_node(x)
+    #     tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
+
+    cluster1 = Cluster(np.array([1, 2, 3]),
+                       Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+    cluster2 = Cluster(np.array([5, 6, 7, 8]),
+                       Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+    cluster3 = Cluster(np.array([10, 11, 12, 13]),
+                       Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
+    cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
+                       Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
+    cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
+                       Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
+    cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
+                       Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
+    cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
+                       Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
+
+    tree = ClusterTree()
+    tree.assign_node(cluster1)
+    tree.assign_node(cluster2)
+    tree.assign_node(cluster3)
+    tree.assign_node(cluster4)
+    tree.assign_node(cluster5)
+    tree.assign_node(cluster6)
+    tree.assign_node(cluster7)
+
+    tree.add_edge(1, 2, is_left=True)
+    tree.add_edge(1, 3, is_left=False)
+    tree.add_edge(2, 4, is_left=True)
+    tree.add_edge(2, 5, is_left=False)
+    tree.add_edge(3, 6, is_left=True)
+    tree.add_edge(3, 7, is_left=False)
+    tree.plot_tree()
     #
     # for x in reversed(range(0, 8)):
     #
