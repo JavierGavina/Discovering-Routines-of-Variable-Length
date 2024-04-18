@@ -49,7 +49,7 @@ from matplotlib import gridspec
 import warnings
 
 from itertools import product
-from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine
+from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine, ClusterTree
 
 sys.path.append("../")
 
@@ -270,7 +270,8 @@ class DRFL:
             # Check if save_dir is a string
             if key in "save_dir":
                 if value is not None and not isinstance(value, str):
-                    raise TypeError(f"{key} must be a string indicating path to save the plot. Got {type(value).__name__}")
+                    raise TypeError(
+                        f"{key} must be a string indicating path to save the plot. Got {type(value).__name__}")
 
     @staticmethod
     def __minimum_distance_index(distances: Union[np.ndarray, list]) -> int:
@@ -343,7 +344,6 @@ class DRFL:
 
         return S1.distance(S2) <= R
 
-
     @staticmethod
     def __is_overlap(S_i: Subsequence, S_j: Subsequence):
         """
@@ -387,7 +387,8 @@ class DRFL:
 
         # Check if S_i and S_j are instances of Subsequence
         if not isinstance(S_i, Subsequence) or not isinstance(S_j, Subsequence):
-            raise TypeError(f"S_i and S_j must be instances of Subsequence. Got {type(S_i).__name__} and {type(S_j).__name__} instead")
+            raise TypeError(
+                f"S_i and S_j must be instances of Subsequence. Got {type(S_i).__name__} and {type(S_j).__name__} instead")
 
         # Get the starting point and length of the subsequences
         start_i, p = S_i.get_starting_point(), len(S_i.get_instance())
@@ -529,7 +530,8 @@ class DRFL:
 
         # Check if t is within the range of the time series
         if t + self._m > len(time_series) or t < 0:
-            raise ValueError(f"The starting point {t} of the subsequence is out of the time series range (0, {len(time_series)-self._m})")
+            raise ValueError(
+                f"The starting point {t} of the subsequence is out of the time series range (0, {len(time_series) - self._m})")
 
         window = time_series[t:t + self._m]  # Extract the time window
 
@@ -579,7 +581,8 @@ class DRFL:
 
         # Check if subsequence is an instance of Subsequence and cluster is an instance of Cluster
         if not isinstance(subsequence, Subsequence) or not isinstance(cluster, Cluster):
-            raise TypeError(f"subsequence and cluster must be instances of Subsequence and Cluster respectively. Got {type(subsequence).__name__} and {type(cluster).__name__} instead")
+            raise TypeError(
+                f"subsequence and cluster must be instances of Subsequence and Cluster respectively. Got {type(subsequence).__name__} and {type(cluster).__name__} instead")
 
         # Check if the subsequence is not a trivial match with any of the instances from the cluster
         if not self.__is_match(S1=subsequence, S2=cluster.centroid, R=R):
@@ -1161,7 +1164,8 @@ class ParallelSearchDRFL(DRFL):
         # Check if the parameter grid has valid parameters
         for param in param_grid:
             if param not in ["m", "R", "C", "G", "epsilon", "L"]:
-                raise ValueError(f"Invalid parameter in param_grid. Got {param} and available parameters are: m, R, C, G, epsilon, L")
+                raise ValueError(
+                    f"Invalid parameter in param_grid. Got {param} and available parameters are: m, R, C, G, epsilon, L")
 
             if not isinstance(param_grid[param], list) and param != "m":
                 raise TypeError(f"Values for {param} must be a list. Got {type(param_grid[param]).__name__}")
@@ -1431,6 +1435,104 @@ class DRGS(DRFL):
         """
 
         return left + right
+
+    @staticmethod
+    def __get_parent_child_starting_points(parent: Cluster, child: Cluster):
+        """
+        Get the starting points of the parent and child clusters.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `tuple[list[int], list[int]]`. The starting points of the parent and child clusters.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=1))
+            >>> parent_starting_points, child_starting_points = DRGS.__get_parent_child_starting_points(parent, child)
+            >>> print(parent_starting_points, child_starting_points)
+            ([0], [1])
+        """
+
+        # Check if the parent and child clusters are Cluster objects
+        if not isinstance(parent, Cluster):
+            raise TypeError(f"The parent must be a Cluster object. Got {type(parent).__name__} instead.")
+
+        if not isinstance(child, Cluster):
+            raise TypeError(f"The child must be a Cluster object. Got {type(child).__name__} instead.")
+
+        # Get the parent and child sequences
+        parent_sequences = parent.get_sequences()
+        child_sequences = child.get_sequences()
+
+        # Get the starting points of the parent and child sequences
+        parent_starting_points = parent_sequences.get_starting_points()
+        child_starting_points = child_sequences.get_starting_points()
+
+        return parent_starting_points, child_starting_points
+
+    @staticmethod
+    def __is_left_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the left child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the left child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_left = drgs.__is_left_child(parent, child)
+            >>> print(is_left)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
+
+        return parent_sp[0] - child_sp[0] == 1
+
+    @staticmethod
+    def __is_right_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the right child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the right child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_right = drgs.__is_right_child(parent, child)
+            >>> print(is_right)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
+
+        return parent_sp[0] - child_sp[0] == 0
 
     def __grow_from_left(self, sequence: Sequence) -> Sequence:
         """
@@ -1727,6 +1829,27 @@ class DRGS(DRFL):
 
         return self.__hierarchical_routines
 
+    def convert_to_cluster_tree(self) -> ClusterTree:
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        if self.__hierarchical_routines.is_empty():
+            warnings.warn("No routines have been discovered", UserWarning)
+            return ClusterTree()
+
+        cluster_tree = ClusterTree()
+        for length, routine in self.__hierarchical_routines.items:
+            for i, cluster in enumerate(routine):
+                cluster_tree.assign_node(cluster)
+                if length > self.__length_range[0]:
+                    for j, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
+                        if self.__is_left_child(parent_cluster, cluster):
+                            cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
+
+                        if self.__is_right_child(parent_cluster, cluster):
+                            cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
+        return cluster_tree
+
     def show_results(self) -> None:
         """
         Displays the discovered routines after fitting the model to the time series data.
@@ -1803,6 +1926,7 @@ class DRGS(DRFL):
             >>> drgs.fit(time_series)
             >>> drgs.plot_hierarchical_results()
         """
+
         # Check the validity of the parameters
         args = locals()
         super()._check_plot_params(**args)
@@ -1907,4 +2031,7 @@ if __name__ == "__main__":
     drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
     drgs.fit(time_series)
     drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
-                                   show_horizontal_lines=True, show_background_annotations=False)
+                                   show_horizontal_lines=True, show_background_annotations=True, show_xticks=False)
+
+    cluster_tree = drgs.convert_to_cluster_tree()
+    cluster_tree.plot_tree()
