@@ -3,6 +3,8 @@ import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+import os
 import time
 from multiprocessing import cpu_count
 from itertools import product
@@ -60,6 +62,36 @@ def feature_extraction(data: pd.DataFrame, correspondences: dict) -> pd.DataFram
     return feat_extraction
 
 
+def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
+    feat_extraction = pd.DataFrame(
+        columns=["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()])
+    for idx, row in tqdm(data.iterrows()):
+        sequence = row["Sequence"]
+        for minute in tqdm(range(len(sequence))):
+            new_row = {"Year": row["Year"], "Month": row["Month"], "Day": row["Day"], "Hour": minute // 60,
+                       "Minute": minute}
+            for key in correspondences.keys():
+                new_row[f"N_{correspondences[key]}"] = int(sequence[minute] == key)
+            feat_extraction.loc[len(feat_extraction)] = new_row
+
+        os.system('cls' if os.name == 'nt' else 'clear')
+        if idx % 10 == 0:
+            print(f"Processed {idx} rows")
+
+        if idx == 10:
+            break
+
+    feat_extraction = feat_extraction[["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()]]
+    feat_extraction = feat_extraction.drop(["Minute"], axis=1).groupby(["Year", "Month", "Day", "Hour"]).sum().reset_index()
+    feat_extraction["Date"] = pd.to_timedelta(feat_extraction["Hour"], unit="h") + pd.to_datetime(
+        feat_extraction[["Year", "Month", "Day"]])
+
+    feat_extraction.set_index("Date", inplace=True)
+    feat_extraction = feat_extraction.drop(columns=["Year", "Month", "Day", "Hour"])
+
+    return feat_extraction
+
+
 def plot_feat_extraction_days(feat_extract: pd.DataFrame):
     columnas = feat_extract.columns[3:].tolist()
     aux = feat_extract.copy()
@@ -100,6 +132,25 @@ def get_time_series(feat_extract: pd.DataFrame, room: str):
 
 
 if __name__ == "__main__":
+    json_dictionary_file = "data/dictionary_rooms.json"
+    data_dir = "data/activities-simulation-easy.csv"
+    correspondencies = obtain_correspondencies(json_dictionary_file)
+    df = load_data(data_dir)
+    feat_extraction = group_by_hour(df, correspondencies)
+    pd.set_option('display.max_columns', None, 'display.max_rows', None)
+
+    room_time_series = feat_extraction["N_room"]
+    drgs = DRGS(length_range=(3, 24), R=5, C=10, G=30, epsilon=1)
+    drgs.fit(room_time_series)
+    drgs.show_results()
+    drgs.plot_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
+                                   yticks_fontsize=20, figsize=(45, 25),
+                                   linewidth_bars=2, xlim=(0, 50))
+
+    tree = drgs.convert_to_cluster_tree()
+    tree.plot_tree()
+
+
     # # Simple fit
     # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))

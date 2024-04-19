@@ -1670,9 +1670,6 @@ class DRGS(DRFL):
 
         return sequence_right
 
-    def __overlap_remove(self, routines: Routines) -> Routines:
-        pass
-
     def __execute_drfl(self, time_series: pd.Series, m: int) -> Routines:
         """
         Execute the DRFL algorithm for a given length of subsequences.
@@ -1792,6 +1789,9 @@ class DRGS(DRFL):
 
             # Remove repeated clusters
             unique_routines = routines_l_k.drop_duplicates()
+
+            # Remove subsets
+            unique_routines = unique_routines.remove_subsets()
             # unique_routines = routines_l_k
 
             # Union for the left and right routines from the actual hierarchy
@@ -1830,24 +1830,57 @@ class DRGS(DRFL):
         return self.__hierarchical_routines
 
     def convert_to_cluster_tree(self) -> ClusterTree:
+        """
+        Convert the discovered routines to a ClusterTree object.
+
+        Returns:
+            `ClusterTree`. A ClusterTree object containing the discovered routines.
+
+        Raises:
+            RuntimeError: If the model has not been fitted yet.
+
+        Notes:
+            Shows a UserWarning if no routines have been discovered and then returns an empty cluster tree.
+
+        Examples:
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+            >>> cluster_tree = drgs.convert_to_cluster_tree()
+        """
+
+        # Check if the model has been fitted before converting the results to a ClusterTree
         if not self.__already_fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
+        # Check if there are no routines discovered
         if self.__hierarchical_routines.is_empty():
             warnings.warn("No routines have been discovered", UserWarning)
             return ClusterTree()
 
+        # Create a ClusterTree object
         cluster_tree = ClusterTree()
+
+        # Assign the nodes to the cluster tree and iterate over all hierarchical routines
         for length, routine in self.__hierarchical_routines.items:
-            for i, cluster in enumerate(routine):
+            for cluster in routine:
+                # Assign the node to the cluster tree
                 cluster_tree.assign_node(cluster)
+
+                # If the length is greater than the minimum length, add the edges to the cluster tree
                 if length > self.__length_range[0]:
-                    for j, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
+                    # Iterate over the parent clusters
+                    for parent_cluster in self.__hierarchical_routines[length - 1]:
+                        # Check if the current cluster is the left child from the parent cluster and add the edge
                         if self.__is_left_child(parent_cluster, cluster):
                             cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
 
+                        # Check if the current cluster is the right child from the parent cluster and add the edge
                         if self.__is_right_child(parent_cluster, cluster):
                             cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
+
+        cluster_tree.assing_names()
         return cluster_tree
 
     def show_results(self) -> None:
@@ -2021,18 +2054,22 @@ class DRGS(DRFL):
 
 
 if __name__ == "__main__":
-    time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+
+
+    # THIS TIME SERIES GIVES CLUSTERS INSIDE CLUSTERS
+    # time_series = pd.Series([3, 6, 4, 2, 1, 1, 2, 3, 6, 4, 2, 1, 1, 1, 3, 6, 4, 2, 1, 1, 1])
+    # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
     time_series = pd.Series(
         [1, 1, 1, 1, 5, 6, 9, 7, 5, 2, 1, 1, 1, 2, 5, 6, 9, 7, 4, 1, 1, 6, 6, 9, 7, 6, 1, 1, 1, 1, 1])
-    # repeat the time series 10 times
-    # time_series = pd.concat([time_series] * 10)
     time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-
-    drgs = DRGS(length_range=(3, 13), R=2, C=3, G=4, epsilon=1, L=3)
+    drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=1, L=0)
     drgs.fit(time_series)
-    drgs.plot_hierarchical_results(xticks_fontsize=10, coloured_text_fontsize=20, text_fontsize=15,
-                                   show_horizontal_lines=True, show_background_annotations=True, show_xticks=False,
-                                   save_dir="../figs/routines_detected.png")
-
-    cluster_tree = drgs.convert_to_cluster_tree()
-    cluster_tree.plot_tree(save_dir="../figs/routines_detected_tree.png")
+    drgs.plot_hierarchical_results()
+    routines = drgs.get_results()
+    drgs.show_results()
+    tree = drgs.convert_to_cluster_tree()
+    tree.plot_tree()
+    tree.drop_node(1)
+    tree.plot_tree()
+    tree.drop_node(2)
+    tree.plot_tree()

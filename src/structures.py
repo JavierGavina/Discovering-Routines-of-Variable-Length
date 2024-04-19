@@ -379,7 +379,6 @@ import matplotlib.cm as cm
 import copy
 
 
-
 class Subsequence:
     """
     Basic data structure to represent a subsequence from a sequence which belongs to time series
@@ -2705,6 +2704,63 @@ class Routines:
 
         return new_routines
 
+    def remove_subsets(self) -> 'Routines':
+        """
+        Filter the clusters that are subsets of another cluster in the routines and returns the filtered routines
+
+        Returns:
+            `Routines`. The routines without the clusters that are subsets of another cluster
+
+        Examples:
+            >>> routines = Routines()
+            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster2 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> cluster3 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> routines.add_routine(cluster1)
+            >>> routines.add_routine(cluster2)
+            >>> routines.add_routine(cluster3)
+            >>> new_routines = routines.remove_subsets()
+            >>> print(new_routines)
+            Routines(
+                list_routines=[
+                    Cluster(
+                        - centroid = [1, 1, 1, 1],
+                        - instances = [[1, 2, 3, 4]]
+                        - starting_points = [0]
+                        - dates = [datetime.date(2021, 1, 1)]
+                    )
+                ]
+            )
+        """
+        # Get the starting points of each cluster
+        list_starting_points = [cluster.get_starting_points() for cluster in self.__routines]
+        new_routine = Routines()
+        to_drop_list = []
+
+        # Check if the starting points of the first routine are a subset of the starting points of the second routine
+        for i in range(len(self.__routines)):
+            starting_points = list_starting_points[i]
+
+            for j in range(i + 1, len(self.__routines)):
+                # Check if the starting points of the first routine are a subset of the starting points of the second routine
+                if len(starting_points) < len(list_starting_points[j]):
+                    # If each starting point is on the starting points from the second routine, then is a subset
+                    if all([x in list_starting_points[j] for x in starting_points]):
+                        to_drop_list.append(i)
+                        break
+                else:
+                    # Check if the starting points of the second routine are a subset of the starting points of the first routine
+                    if all([x in starting_points for x in list_starting_points[j]]):
+                        to_drop_list.append(j)
+                        break
+
+        # Add the clusters that are not subsets
+        for i in range(len(self.__routines)):
+            if i not in to_drop_list:
+                new_routine.add_routine(self.__routines[i])
+
+        return new_routine
+
 
 class HierarchyRoutine:
     """
@@ -3323,6 +3379,7 @@ class ClusterTree:
         self.__graph: nx.DiGraph = nx.DiGraph()
         self.__nodes: list[Cluster] = []
         self.__list_of_index: list[int] = []
+        self.__name_node: list[str] = []
 
     @property
     def indexes(self) -> list[int]:
@@ -3447,7 +3504,7 @@ class ClusterTree:
         """
 
         integer_params = ["node_size", "title_fontsize"]
-        string_params = [ "title", "save_dir"]
+        string_params = ["title", "save_dir"]
         tuple_params = ["figsize"]
         boolean_params = ["with_labels"]
 
@@ -3586,26 +3643,51 @@ class ClusterTree:
         available_hierarchies = self.hierarchies
         n_clusters = [len(self.get_nodes_with_hierarchy(hier)) for hier in available_hierarchies]
         n_max = max(n_clusters)
+
+
+
+        if len(self.__name_node) > 0:
+            n_max = max([int(name.split("-")[1]) for name in self.__name_node])
+
         base_colors = cm.rainbow(np.linspace(0, 1, n_max))
         colors = []
         for hier in available_hierarchies:
-            clusters = self.get_nodes_with_hierarchy(hier)
-            for cluster in clusters:
-                idx = clusters.index(cluster)
-                colors.append(base_colors[idx])
+            if len(self.__name_node) > 0:
+                clusters = [int(name.split("-")[1]) for name in self.__name_node if int(name.split("-")[0]) == hier]
+                for idx in clusters:
+                    colors.append(base_colors[idx - 1])
+
+            else:
+                clusters = self.get_nodes_with_hierarchy(hier)
+                for cluster in clusters:
+                    idx = clusters.index(cluster)
+                    colors.append(base_colors[idx])
 
         return list(colors)
 
     def __assign_labels(self) -> dict:
+        """
+        Assigns the labels to the nodes of the graph
+
+        Returns:
+            `dict`. A dictionary where the keys are the indexes and the values are the labels
+        """
+
         labels = []
         available_hierarchies = self.hierarchies
-        for hierarchy in available_hierarchies:
-            clusters = self.get_nodes_with_hierarchy(hierarchy)
-            for k in range(len(clusters)):
-                labels.append(f"{hierarchy}-{k+1}")
+
+        if len(self.__name_node) > 0:
+            for name in self.__name_node:
+                labels.append(name)
+
+        else:
+            for hierarchy in available_hierarchies:
+                clusters = self.get_nodes_with_hierarchy(hierarchy)
+                for cluster in clusters:
+                    idx = clusters.index(cluster)
+                    labels.append(f"{hierarchy}-{idx + 1}")
 
         return {node: label for node, label in zip(self.__list_of_index, labels)}
-
 
     def __check_clusters_from_edges(self, parent: Cluster, child: Cluster) -> None:
         """
@@ -4018,6 +4100,16 @@ class ClusterTree:
     def has_parents(self, node: Union[Cluster, int]) -> bool:
         return len(self.parents(node)) > 0
 
+    def assing_names(self):
+        available_hierarchies = self.hierarchies
+        for hierarchy in available_hierarchies:
+            clusters = self.get_nodes_with_hierarchy(hierarchy)
+            for k in range(len(clusters)):
+                self.__name_node.append(f"{hierarchy}-{k + 1}")
+
+    def reset_names(self):
+        self.__name_node: list[str] = []
+
     def assign_node(self, cluster: Cluster):
 
         if not isinstance(cluster, Cluster):
@@ -4075,8 +4167,8 @@ class ClusterTree:
             >>> tree.add_edge(1, 2, is_left=True)
             >>> tree.add_edge(1, 3, is_left=False)
             >>> tree
-
         """
+
         # Check if the node is an instance of Cluster or an integer
         node = self.__check_and_convert_node(node)
 
@@ -4119,6 +4211,10 @@ class ClusterTree:
 
             # Remove the index from the list of indexes
             self.__list_of_index = [idx for idx in self.__list_of_index if idx != node]
+
+            # Remove the name from the list of names if it exists
+            if len(self.__name_node) > 0:
+                self.__name_node = [name for idx, name in enumerate(self.__name_node) if idx != idx_to_remove]
 
     def plot_tree(self, node_size: int = 1000, with_labels: bool = True,
                   figsize: tuple[int, int] = (7, 7),
@@ -4180,109 +4276,3 @@ class ClusterTree:
 
         # Show the plot
         plt.show()
-
-
-if __name__ == "__main__":
-
-    # for x in range(1, 8):
-    #     cluster1 = Cluster(np.array([1, 2, 3]),
-    #                        Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-    #     cluster2 = Cluster(np.array([5, 6, 7, 8]),
-    #                        Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-    #     cluster3 = Cluster(np.array([10, 11, 12, 13]),
-    #                        Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
-    #     cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
-    #                        Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
-    #     cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
-    #                        Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
-    #     cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
-    #                        Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
-    #     cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
-    #                        Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
-    #
-    #     tree = ClusterTree()
-    #     tree.assign_node(cluster1)
-    #     tree.assign_node(cluster2)
-    #     tree.assign_node(cluster3)
-    #     tree.assign_node(cluster4)
-    #     tree.assign_node(cluster5)
-    #     tree.assign_node(cluster6)
-    #     tree.assign_node(cluster7)
-    #
-    #     tree.add_edge(1, 2, is_left=True)
-    #     tree.add_edge(1, 3, is_left=False)
-    #     tree.add_edge(2, 4, is_left=True)
-    #     tree.add_edge(2, 5, is_left=False)
-    #     tree.add_edge(3, 6, is_left=True)
-    #     tree.add_edge(3, 7, is_left=False)
-    #
-    #     tree.drop_node(x)
-    #     tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
-
-    cluster1 = Cluster(np.array([1, 2, 3]),
-                       Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-    cluster2 = Cluster(np.array([5, 6, 7, 8]),
-                       Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-    cluster3 = Cluster(np.array([10, 11, 12, 13]),
-                       Sequence(Subsequence(np.array([10, 11, 12, 13]), datetime.date(2021, 1, 3), 5)))
-    cluster4 = Cluster(np.array([15, 16, 17, 18, 19]),
-                       Sequence(Subsequence(np.array([15, 16, 17, 18, 19]), datetime.date(2021, 1, 4), 6)))
-    cluster5 = Cluster(np.array([20, 21, 22, 23, 24]),
-                       Sequence(Subsequence(np.array([20, 21, 22, 23, 24]), datetime.date(2021, 1, 5), 7)))
-    cluster6 = Cluster(np.array([25, 26, 27, 28, 29]),
-                       Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
-    cluster7 = Cluster(np.array([30, 31, 32, 33, 34]),
-                       Sequence(Subsequence(np.array([30, 31, 32, 33, 34]), datetime.date(2021, 1, 7), 9)))
-
-    tree = ClusterTree()
-    tree.assign_node(cluster1)
-    tree.assign_node(cluster2)
-    tree.assign_node(cluster3)
-    tree.assign_node(cluster4)
-    tree.assign_node(cluster5)
-    tree.assign_node(cluster6)
-    tree.assign_node(cluster7)
-
-    tree.add_edge(1, 2, is_left=True)
-    tree.add_edge(1, 3, is_left=False)
-    tree.add_edge(2, 4, is_left=True)
-    tree.add_edge(2, 5, is_left=False)
-    tree.add_edge(3, 6, is_left=True)
-    tree.add_edge(3, 7, is_left=False)
-    tree.plot_tree()
-    #
-    # for x in reversed(range(0, 8)):
-    #
-    #     tree.drop_node(x)
-    #     tree.plot_tree(figsize=(5, 5), title=f"Original Tree Drop {x}", save_dir=f"../figs/original_tree {x}.png")
-
-    # for x in range(1, 7):
-    #     cluster31 = Cluster(np.array([3, 4, 5]),
-    #                         Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-    #     cluster32 = Cluster(np.array([5, 6, 7]),
-    #                         Sequence(Subsequence(np.array([5, 6, 7]), datetime.date(2021, 1, 2), 4)))
-    #     cluster33 = Cluster(np.array([10, 11, 12]),
-    #                         Sequence(Subsequence(np.array([10, 11, 12]), datetime.date(2021, 1, 3), 5)))
-    #     cluster41 = Cluster(np.array([15, 16, 17, 18]),
-    #                         Sequence(Subsequence(np.array([15, 16, 17, 18]), datetime.date(2021, 1, 4), 6)))
-    #     cluster42 = Cluster(np.array([20, 21, 22, 23]),
-    #                         Sequence(Subsequence(np.array([20, 21, 22, 23]), datetime.date(2021, 1, 5), 7)))
-    #     cluster51 = Cluster(np.array([25, 26, 27, 28, 29]),
-    #                         Sequence(Subsequence(np.array([25, 26, 27, 28, 29]), datetime.date(2021, 1, 6), 8)))
-    #
-    #     tree = ClusterTree()
-    #     tree.assign_node(cluster31)
-    #     tree.assign_node(cluster32)
-    #     tree.assign_node(cluster33)
-    #     tree.assign_node(cluster41)
-    #     tree.assign_node(cluster42)
-    #     tree.assign_node(cluster51)
-    #
-    #     tree.add_edge(cluster31, cluster41, is_left=False)
-    #     tree.add_edge(cluster32, cluster42, is_left=False)
-    #     tree.add_edge(cluster33, cluster42, is_left=True)
-    #     tree.add_edge(cluster41, cluster51, is_left=False)
-    #     tree.add_edge(cluster42, cluster51, is_left=True)
-    #
-    #     tree.drop_node(x)
-    #     tree.plot_tree(figsize=(5, 5), title=f"Drop {x}", save_dir=f"../figs/drop_node_{x}.png")
