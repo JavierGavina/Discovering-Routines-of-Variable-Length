@@ -3821,6 +3821,12 @@ class ClusterTree:
         if not is_left and any(not self.__graph.edges[parent, child]['left'] for child in existent_children):
             raise ValueError(f"Right child already exists for parent {parent_clust}")
 
+    def get_name_node(self, node: Cluster):
+
+        idx = self.__nodes.index(node)
+        return self.__name_node[idx]
+
+
     def get_nodes_with_hierarchy(self, hierarchy: int) -> list[Cluster]:
         """
         Returns the list of clusters with the specified hierarchy

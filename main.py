@@ -78,7 +78,7 @@ def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
         if idx % 10 == 0:
             print(f"Processed {idx} rows")
 
-        if idx == 10:
+        if idx == 62:
             break
 
     feat_extraction = feat_extraction[["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()]]
@@ -132,26 +132,41 @@ def get_time_series(feat_extract: pd.DataFrame, room: str):
 
 
 if __name__ == "__main__":
-    json_dictionary_file = "data/dictionary_rooms.json"
-    data_dir = "data/activities-simulation-easy.csv"
-    correspondencies = obtain_correspondencies(json_dictionary_file)
-    df = load_data(data_dir)
-    feat_extraction = group_by_hour(df, correspondencies)
-    pd.set_option('display.max_columns', None, 'display.max_rows', None)
-
+    # json_dictionary_file = "data/dictionary_rooms.json"
+    # data_dir = "data/activities-simulation-easy.csv"
+    # correspondencies = obtain_correspondencies(json_dictionary_file)
+    # df = load_data(data_dir)
+    # feat_extraction = group_by_hour(df, correspondencies)
+    # pd.set_option('display.max_columns', None, 'display.max_rows', None)
+    # feat_extraction.to_csv("data/out_feat_extraction.csv", index=True)
+    feat_extraction = pd.read_csv("data/out_feat_extraction.csv")
     room_time_series = feat_extraction["N_room"]
+    room_time_series.index = pd.date_range(start="2024-01-01", periods=len(room_time_series))
     drgs = DRGS(length_range=(3, 24), R=5, C=10, G=30, epsilon=1)
-    drgs.fit(room_time_series)
-    drgs.show_results()
-    drgs.plot_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
-                                   yticks_fontsize=20, figsize=(45, 25),
-                                   linewidth_bars=2, xlim=(0, 50))
+    # drgs.fit(room_time_series)
+    # drgs.show_results()
+    # drgs.plot_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
+    #                                yticks_fontsize=20, figsize=(45, 25),
+    #                                linewidth_bars=2, xlim=(0, 50))
 
+#     tree = drgs.convert_to_cluster_tree()
+#     tree.plot_tree()
+#     nodes = tree.get_nodes_with_hierarchy(7)
+#     for node in nodes:
+#         tree.drop_node(node)
+#
+#     for node in tree.nodes:
+#         print(tree.get_name_node(node))
+
+    drgs = DRGS(length_range=(3, 24), R=3, C=10, G=30, epsilon=0.5)
+    drgs.fit(room_time_series)
+    drgs.plot_separate_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
+                                            yticks_fontsize=20, figsize=(45, 25),
+                                            linewidth_bars=2, xlim=(0, 50))
     tree = drgs.convert_to_cluster_tree()
     tree.plot_tree()
 
-
-    # # Simple fit
+    # Simple fit
     # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
     # target_centroids = [[4 / 3, 3, 6], [3, 6, 4], [6, 4, 4 / 3]]

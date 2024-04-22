@@ -41,6 +41,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
+import copy
 
 from typing import Union, Optional
 import matplotlib.pyplot as plt
@@ -599,6 +600,52 @@ class DRFL:
 
         return True
 
+    def __drop_consecutive_instances(self, routines: Routines) -> Routines:
+        old_routines = copy.deepcopy(routines)
+        new_routines = Routines()
+        print("LEN OLD ROUTINES", len(old_routines))
+        for cluster in old_routines:
+            starting_points = cluster.get_starting_points()
+            instances = cluster.get_sequences().get_subsequences(to_array=True)
+            new_sequence = Sequence()
+            to_keep = [starting_points.index(starting_points[0])]
+            for i in range(1, len(starting_points)):
+                if starting_points[i] - starting_points[i - 1] >= self._m:
+                    # print(f"On Cluster Hierarchy {cluster.length_cluster_subsequences}; Keeping index {i} with value {starting_points[i]}")
+                    to_keep.append(i)
+
+            # print(f"On hierarchy {cluster.length_cluster_subsequences}; Keeping indexes {to_keep}")
+            for i in to_keep:
+                new_sequence.add_sequence(Subsequence(instance=instances[i], date=cluster.get_dates()[i], starting_point=i))
+
+            instances = new_sequence.get_subsequences(to_array=True)
+            new_centroid = np.mean(instances, axis=0)
+
+            new_cluster = Cluster(centroid=new_centroid, instances=new_sequence)
+            if len(new_cluster) >= self._C:
+                new_routines.add_routine(new_cluster)
+
+        return new_routines
+
+
+    # def __drop_consecutive_instances(self, cluster: Cluster) -> Cluster:
+    #     starting_points = cluster.get_starting_points()
+    #     instances = cluster.get_sequences().get_subsequences(to_array=True)
+    #     sequence = Sequence()
+    #
+    #     for i in range(len(starting_points) - 1):
+    #         # if the next starting point is consecutive, we skip it
+    #         if starting_points[i + 1] - starting_points[i] >= self._m:
+    #             sequence.add_sequence(
+    #                 Subsequence(instance=instances[i], date=cluster.get_dates()[i], starting_point=starting_points[i]))
+    #
+    #     instances = sequence.get_subsequences(to_array=True)
+    #     new_centroid = np.mean(instances, axis=0)
+    #
+    #     new_cluster = Cluster(centroid=new_centroid, instances=sequence)
+    #
+    #     return new_cluster
+
     def _subgroup(self, sequence: Sequence, R: float | int, C: int, G: float | int) -> Routines:
         """
         Group the subsequences into clusters based on their magnitude and maximum absolute distance.
@@ -856,6 +903,12 @@ class DRFL:
         if len(self.__routines) > 0:
             to_drop = [k for k in range(len(self.__routines)) if k not in keep_indices]
             self.__routines = self.__routines.drop_indexes(to_drop)
+
+            # Remove Subsets
+            self.__routines = self.__routines.remove_subsets()
+
+            # Drop consecutive instances
+            self.__routines = self.__drop_consecutive_instances(self.__routines)
 
         if len(self.__routines) == 0:
             warnings.warn("No routines have been discovered", UserWarning)
@@ -1503,7 +1556,7 @@ class DRGS(DRFL):
         # Get the starting points of the parent and child clusters
         parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
 
-        return parent_sp[0] - child_sp[0] == 1
+        return all([x + 1 in parent_sp for x in child_sp])
 
     @staticmethod
     def __is_right_child(parent: Cluster, child: Cluster) -> bool:
@@ -1532,7 +1585,7 @@ class DRGS(DRFL):
         # Get the starting points of the parent and child clusters
         parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
 
-        return parent_sp[0] - child_sp[0] == 0
+        return all([x in parent_sp for x in child_sp])
 
     def __grow_from_left(self, sequence: Sequence) -> Sequence:
         """
@@ -1789,6 +1842,7 @@ class DRGS(DRFL):
 
             # Remove repeated clusters
             unique_routines = routines_l_k.drop_duplicates()
+            # unique_routines = routines_l_k
 
             # Remove subsets
             unique_routines = unique_routines.remove_subsets()
@@ -1864,7 +1918,7 @@ class DRGS(DRFL):
 
         # Assign the nodes to the cluster tree and iterate over all hierarchical routines
         for length, routine in self.__hierarchical_routines.items:
-            for cluster in routine:
+            for id_clust, cluster in enumerate(routine):
                 # Assign the node to the cluster tree
                 cluster_tree.assign_node(cluster)
 
@@ -1873,11 +1927,14 @@ class DRGS(DRFL):
                     # Iterate over the parent clusters
                     for parent_cluster in self.__hierarchical_routines[length - 1]:
                         # Check if the current cluster is the left child from the parent cluster and add the edge
+                        print(f"(NODE): {length}-{id_clust + 1}")
                         if self.__is_left_child(parent_cluster, cluster):
+                            print(f"(LEFT): {length}-{id_clust + 1}")
                             cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
 
                         # Check if the current cluster is the right child from the parent cluster and add the edge
                         if self.__is_right_child(parent_cluster, cluster):
+                            print(f"(RIGHT): {length}-{id_clust + 1}")
                             cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
 
         cluster_tree.assing_names()
@@ -2052,24 +2109,138 @@ class DRGS(DRFL):
         # Display the plot
         plt.show()
 
+    def plot_separate_hierarchical_results(self, title_fontsize: int = 20, show_xticks: bool = True,
+                                           show_horizontal_lines: bool = True, show_background_annotations: bool = True,
+                                           xticks_fontsize: int = 20, yticks_fontsize: int = 20,
+                                           labels_fontsize: int = 20,
+                                           figsize: tuple[int, int] = (30, 10), coloured_text_fontsize: int = 20,
+                                           text_fontsize: int = 15, linewidth_bars: Union[int, float] = 1.5,
+                                           xlim: Optional[tuple[int, int]] = None, save_dir: Optional[str] = None):
 
-if __name__ == "__main__":
+        """
+        This method uses matplotlib to plot the results of the algorithm.
+        The plot shows the time series data with vertical dashed lines indicating the start of each discovered routine.
+        The color of each routine is determined by the order in which they were discovered.
+        Each row in the plot represents a different hierarchy level,
+        and each column represents a different routine within that hierarchy level.
 
+        Parameters:
+            * title_fontsize: `int` (default is 20). Size of the title plot.
+            * show_xticks: `bool` (default is True). Whether to show the xticks or not.
+            * show_horizontal_lines: `bool` (default is True). Whether to show the horizontal lines or not.
+            * show_background_annotations: `bool` (default is True). Whether to show the height of colorless bars or not.
+            * xticks_fontsize: `int` (default is 20). Size of the xticks.
+            * yticks_fontsize: `int (default is 20)`. Size of the yticks.
+            * labels_fontsize: `int` (default is 20). Size of the labels.
+            * figsize: `tuple[int, int]` (default is (30, 10)). Size of the figure.
+            * coloured_text_fontsize: `int` (default is 20). Size of the coloured text.
+            * text_fontsize: `int` (default is 15). Size of the text.
+            * linewidth_bars: `int` | `float` (default is 1.5). Width of the bars in the plot.
+            * xlim: `tuple[int, int]` (default is None). Limit of the x-axis with starting points.
+            * save_dir: `str` (default is None). Directory to save the plot.
 
-    # THIS TIME SERIES GIVES CLUSTERS INSIDE CLUSTERS
-    # time_series = pd.Series([3, 6, 4, 2, 1, 1, 2, 3, 6, 4, 2, 1, 1, 1, 3, 6, 4, 2, 1, 1, 1])
-    # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-    time_series = pd.Series(
-        [1, 1, 1, 1, 5, 6, 9, 7, 5, 2, 1, 1, 1, 2, 5, 6, 9, 7, 4, 1, 1, 6, 6, 9, 7, 6, 1, 1, 1, 1, 1])
-    time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
-    drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=1, L=0)
-    drgs.fit(time_series)
-    drgs.plot_hierarchical_results()
-    routines = drgs.get_results()
-    drgs.show_results()
-    tree = drgs.convert_to_cluster_tree()
-    tree.plot_tree()
-    tree.drop_node(1)
-    tree.plot_tree()
-    tree.drop_node(2)
-    tree.plot_tree()
+        Notes:
+            This method has to be executed after the fit method to ensure that routines have been discovered and are ready to be displayed.
+
+        Examples:
+            >>> import pandas as pd
+            >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+            >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> drgs.fit(time_series)
+            >>> drgs.plot_separate_hierarchical_results()
+        """
+
+        # Check the validity of the parameters
+        args = locals()
+        super()._check_plot_params(**args)
+
+        # Check if the model has been fitted before plotting
+        if not self.__already_fitted:
+            raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
+
+        # Calculate the number of clusters per routine and determine plot dimensions
+        n_cluster_per_routine = [len(routine) for routine in self.__hierarchical_routines.values]
+        n_columns = max(n_cluster_per_routine)
+        base_colors = cm.rainbow(np.linspace(0, 1, n_columns))
+        maximum = max(self.time_series)
+
+        # Set default x-axis limits if not provided
+        xlim = xlim or (0, len(self.time_series))
+
+        # Plot each routine in the hierarchical routines
+        for i, (length, routine) in enumerate(self.__hierarchical_routines.items):
+            # Create the figure, grid layout and base colors for the plot
+            fig = plt.figure(figsize=figsize)
+            gs = gridspec.GridSpec(len(routine), 1, figure=fig)
+
+            for j, cluster in enumerate(routine):
+                # Add subplot for each cluster
+                fig.add_subplot(gs[j])
+
+                # Add horizontal lines for the minimum and maximum thesholds if required
+                if show_horizontal_lines:
+                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+
+                # Set the colors for the time series bars
+                colors = ["gray"] * len(self.time_series)
+                print(f"(PLOT) Cluster {j + 1} of hierarchy {length}, starting points: {cluster.get_starting_points()}")
+                for sp in cluster.get_starting_points():
+                    # Plot a vertical-dashed line at the starting point of each subsequence in the cluster within the x-axis limits
+                    if xlim[0] <= sp <= xlim[1]:
+                        plt.axvline(x=sp, color=base_colors[j], linestyle="--")
+                        # Annotate the time series points with their values
+                        for k in range(cluster.length_cluster_subsequences):
+                            if sp + k <= xlim[1]:
+                                plt.text(x=sp + k - 0.05, y=self.time_series[sp + k] - 0.8,
+                                         s=f"{self.time_series[sp + k]}", fontsize=coloured_text_fontsize,
+                                         backgroundcolor="white", color=base_colors[j])
+
+                                colors[sp + k] = base_colors[j]
+
+                # Annotate the value of each bar that is not colored if required
+                if show_background_annotations:
+                    for k in range(len(self.time_series)):
+                        # if the bar is not coloured (its value is gray and not an array), annotate the value
+                        if not isinstance(colors[k], np.ndarray):
+                            plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
+                                     s=f"{self.time_series[k]}", fontsize=text_fontsize,
+                                     color="black")
+
+                # Customize the title for each subplot
+                plt.title(f"Hierarchy {length} Routine {j + 1}", fontsize=title_fontsize)
+
+                # Plot the time series data as a bar plot
+                plt.bar(np.arange(0, len(self.time_series)), self.time_series.values,
+                        color=colors, edgecolor="black", linewidth=linewidth_bars)
+
+                # Set the ticks on the x-axis and y-axis
+                if show_xticks:
+                    plt.xticks(ticks=np.arange(xlim[0], xlim[1]),
+                               labels=np.arange(xlim[0], xlim[1]),
+                               fontsize=xticks_fontsize)
+                else:
+                    plt.xticks([])
+
+                plt.yticks(fontsize=yticks_fontsize)
+
+                # Set the labels for the x-axis and y-axis
+                plt.xlabel("Starting Points", fontsize=labels_fontsize)
+                plt.ylabel("Magnitude", fontsize=labels_fontsize)
+
+                # Set the limits of the x-axis and y-axis
+                plt.xlim(xlim[0] - 0.5, xlim[1])
+                plt.ylim(0, maximum + 1)
+
+            # Adjust the layout of the plot
+            plt.tight_layout()
+
+            plt.show()
+
+        # Save the plot to the specified directory if provided
+        if save_dir:
+            plt.savefig(save_dir)
+
+        # Display the plot
+        plt.show()
