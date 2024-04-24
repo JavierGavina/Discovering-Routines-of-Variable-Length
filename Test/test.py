@@ -3,10 +3,11 @@ import sys
 import datetime
 import numpy as np
 import pandas as pd
+import networkx as nx
 
 sys.path.append('..')
 
-from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine
+from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine, ClusterTree
 from src.DRFL import DRFL, DRGS
 
 
@@ -339,8 +340,10 @@ class TestSequence(unittest.TestCase):
         self.sequence.add_sequence(self.subsequence1)
         self.sequence.add_sequence(self.subsequence2)
 
-        expected_output = (np.array([[1, 2, 3, 4], [5, 6, 7, 8]]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
-        expected_output_flatten = (np.array([1, 2, 3, 4, 5, 6, 7, 8]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+        expected_output = (
+            np.array([[1, 2, 3, 4], [5, 6, 7, 8]]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
+        expected_output_flatten = (
+            np.array([1, 2, 3, 4, 5, 6, 7, 8]), [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)], [0, 4])
 
         flatten_subseq, flatten_dates, flatten_starting_points = self.sequence.extract_components(flatten=True)
         subseq, dates, starting_points = self.sequence.extract_components(flatten=False)
@@ -913,6 +916,7 @@ class TestHierarchyRoutine(unittest.TestCase):
         self.routines3.add_routine(self.cluster2_5)
 
         self.hierarchy_routine = HierarchyRoutine()
+        # self.hierarchy_routine[3] = self.routines1
 
     def test_init(self):
         """
@@ -1063,6 +1067,41 @@ class TestHierarchyRoutine(unittest.TestCase):
         # Case 4: TypeError
         with self.assertRaises(TypeError):
             "string" in self.hierarchy_routine
+
+    def test_eq(self):
+        """
+        Test the __eq__ method of the HierarchyRoutine class
+
+        The method should return True if the two HierarchyRoutine objects are equal, False otherwise
+
+        The routines added in the self hierarchy are:
+            routine1: hierarchy=3
+
+        The other routine in first case added are:
+            routine1: hierarchy=3
+
+        The other routine in second case added are:
+            routine1: hierarchy=3
+            routine2: hierarchy=4
+
+        The expected outputs are:
+            * True (same routines)
+            * False (different routines)
+        """
+
+        self.hierarchy_routine.add_routine(self.routines1)
+
+        other = HierarchyRoutine()
+        other.add_routine(self.routines1)
+
+        # CASE 1: True
+        self.assertTrue(self.hierarchy_routine == other)
+
+        # Add routine 2 to the other HierarchyRoutine object
+        other.add_routine(self.routines2)
+
+        # CASE 2: False
+        self.assertFalse(self.hierarchy_routine == other)
 
     def test_add_routine(self):
         """
@@ -1259,6 +1298,90 @@ class TestHierarchyRoutine(unittest.TestCase):
                     self.assertTrue(np.array_equal(instance["date"], expected_output[key][i]["instances"][j]["date"]))
                     self.assertTrue(np.array_equal(instance["starting_point"],
                                                    expected_output[key][i]["instances"][j]["starting_point"]))
+
+
+class TestClusterTree(unittest.TestCase):
+    def setUp(self):
+        # Setup nodes
+        self.parent = Cluster(np.array([1, 2, 3]),
+                              Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 2), 1)))
+        self.left = Cluster(np.array([0, 1, 2, 3]),
+                            Sequence(Subsequence(np.array([0, 1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+        self.right = Cluster(np.array([1, 2, 3, 4]),
+                             Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 2), 1)))
+
+        # Setup a tree with some initial nodes and edges to be used in multiple tests.
+        self.tree = ClusterTree()
+
+        self.tree.assign_node(self.parent)
+        self.tree.assign_node(self.left)
+        self.tree.assign_node(self.right)
+
+        self.tree.add_edge(self.parent, self.left, is_left=True)
+        self.tree.add_edge(self.parent, self.right, is_left=False)
+
+    def test_node_assignment(self):
+        # Test that nodes are correctly assigned to the tree.
+        self.assertIn(1, self.tree.graph)
+        self.assertIn(2, self.tree.graph)
+        self.assertIn(3, self.tree.graph)
+
+    def test_is_child(self):
+        # Test that the tree correctly identifies children.
+        self.assertTrue(self.tree.is_child(self.parent, self.left))
+        self.assertTrue(self.tree.is_child(self.parent, self.right))
+
+        self.assertFalse(self.tree.is_child(self.left, self.parent))
+
+    def test_add_edge(self):
+        # Test that edges are correctly added between nodes.
+        self.assertTrue(self.tree.is_left_child(self.parent, self.right))
+        self.assertIn((1, 2, {'left': True}), self.tree.graph.edges.data())
+
+    def test_parent_child_relations(self):
+        # Test retrieval of parents and children.
+        self.assertEqual(self.tree.children(1), [2, 3])
+        self.assertEqual(self.tree.parents(2), [1])
+        self.assertEqual(self.tree.parents(3), [1])
+
+    def test_node_drop(self):
+        # Test the drop_node functionality.
+        self.tree.drop_node(1)
+        self.assertNotIn(1, self.tree.graph)
+        self.assertNotIn(2, self.tree.graph)
+
+    def test_has_children_parents(self):
+        # Test if node correctly reports having children or parents.
+        self.assertTrue(self.tree.has_children(1))
+        self.assertTrue(self.tree.has_parents(2))
+        self.assertFalse(self.tree.has_parents(1))
+        self.assertFalse(self.tree.has_children(2))
+
+    def test_node_indexes(self):
+        # Test the indexing mechanism works correctly.
+        indexes = self.tree.indexes
+        self.assertIn(1, indexes)
+        self.assertIn(2, indexes)
+
+    def test_hierarchy_functionality(self):
+        # Assuming nodes have hierarchies properly assigned on creation or addition.
+        cluster1 = Cluster(np.array([1, 2, 3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 1), 1)))
+        cluster2 = Cluster(np.array([2, 3, 4, 5, 6]), Sequence(Subsequence(np.array([2, 3, 4, 5, 6]), datetime.date(2021, 1, 2), 2)))
+
+        self.tree.assign_node(cluster1)
+        self.tree.assign_node(cluster2)
+
+        list_clusters = self.tree.get_nodes_with_hierarchy(5)
+
+        self.assertEqual(len(list_clusters), 2)
+        self.assertIn(cluster1, list_clusters)
+        self.assertIn(cluster2, list_clusters)
+    def test_edge_case_inputs(self):
+        # Test edge cases such as invalid node types or non-existent nodes.
+        with self.assertRaises(IndexError):
+            self.tree.add_edge(1, 100, is_left=False)  # Non-existent child node
+        with self.assertRaises(TypeError):
+            self.tree.add_edge('a', 'b', is_left=True)  # Invalid node types
 
 
 class TestDRFL(unittest.TestCase):

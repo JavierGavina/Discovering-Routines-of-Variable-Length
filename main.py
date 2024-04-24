@@ -81,8 +81,10 @@ def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
         if idx == 62:
             break
 
-    feat_extraction = feat_extraction[["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()]]
-    feat_extraction = feat_extraction.drop(["Minute"], axis=1).groupby(["Year", "Month", "Day", "Hour"]).sum().reset_index()
+    feat_extraction = feat_extraction[
+        ["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()]]
+    feat_extraction = feat_extraction.drop(["Minute"], axis=1).groupby(
+        ["Year", "Month", "Day", "Hour"]).sum().reset_index()
     feat_extraction["Date"] = pd.to_timedelta(feat_extraction["Hour"], unit="h") + pd.to_datetime(
         feat_extraction[["Year", "Month", "Day"]])
 
@@ -92,43 +94,30 @@ def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
     return feat_extraction
 
 
-def plot_feat_extraction_days(feat_extract: pd.DataFrame):
-    columnas = feat_extract.columns[3:].tolist()
-    aux = feat_extract.copy()
-    aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
-    for col in columnas:
-        key = int(col.replace("N_", ""))
-        plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
-    plt.legend()
-    plt.show()
-
-
-def plot_gym_hours(feat_extract: pd.DataFrame):
-    columnas = feat_extract.columns[3:].tolist()
-    aux = feat_extract.copy()
-    aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
-    for col in columnas:
-        key = int(col.replace("N_", ""))
-        if correspondencies[key] == "gym":
-            plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
-
-    plt.xlim((pd.to_datetime("2024-02-01"), pd.to_datetime("2024-10-31")))
-    plt.legend()
-    plt.xticks(rotation=30)
-    plt.show()
-
-
-def get_time_series(feat_extract: pd.DataFrame, room: str):
-    columnas = feat_extract.columns[3:].tolist()
-    aux = feat_extract.copy()
-    aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
-    aux = aux.set_index("date")
-    for col in columnas:
-        key = int(col.replace("N_", ""))
-        if correspondencies[key] == room:
-            time_series = aux[col]
-            time_series.name = room
-            return time_series
+# def plot_feat_extraction_days(feat_extract: pd.DataFrame):
+#     columnas = feat_extract.columns[3:].tolist()
+#     aux = feat_extract.copy()
+#     aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
+#     for col in columnas:
+#         key = int(col.replace("N_", ""))
+#         plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
+#     plt.legend()
+#     plt.show()
+#
+#
+# def plot_gym_hours(feat_extract: pd.DataFrame):
+#     columnas = feat_extract.columns[3:].tolist()
+#     aux = feat_extract.copy()
+#     aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
+#     for col in columnas:
+#         key = int(col.replace("N_", ""))
+#         if correspondencies[key] == "gym":
+#             plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
+#
+#     plt.xlim((pd.to_datetime("2024-02-01"), pd.to_datetime("2024-10-31")))
+#     plt.legend()
+#     plt.xticks(rotation=30)
+#     plt.show()
 
 
 if __name__ == "__main__":
@@ -140,32 +129,34 @@ if __name__ == "__main__":
     # pd.set_option('display.max_columns', None, 'display.max_rows', None)
     # feat_extraction.to_csv("data/out_feat_extraction.csv", index=True)
     feat_extraction = pd.read_csv("data/out_feat_extraction.csv")
+    feat_extraction.index = pd.date_range(start="2024-01-01", periods=len(feat_extraction))
     room_time_series = feat_extraction["N_room"]
-    room_time_series.index = pd.date_range(start="2024-01-01", periods=len(room_time_series))
-    drgs = DRGS(length_range=(3, 24), R=5, C=10, G=30, epsilon=1)
-    # drgs.fit(room_time_series)
-    # drgs.show_results()
-    # drgs.plot_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
-    #                                yticks_fontsize=20, figsize=(45, 25),
-    #                                linewidth_bars=2, xlim=(0, 50))
 
-#     tree = drgs.convert_to_cluster_tree()
-#     tree.plot_tree()
-#     nodes = tree.get_nodes_with_hierarchy(7)
-#     for node in nodes:
-#         tree.drop_node(node)
-#
-#     for node in tree.nodes:
-#         print(tree.get_name_node(node))
-
-    drgs = DRGS(length_range=(3, 24), R=3, C=10, G=30, epsilon=0.5)
+    drgs = DRGS(length_range=(3, 6), R=5, C=10, G=4, epsilon=1)
     drgs.fit(room_time_series)
     drgs.plot_separate_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
                                             yticks_fontsize=20, figsize=(45, 25),
-                                            linewidth_bars=2, xlim=(0, 50))
+                                            linewidth_bars=2, xlim=(40, 140))
+    # drgs.show_results()
     tree = drgs.convert_to_cluster_tree()
-    tree.plot_tree()
+    tree.plot_tree( title="Filtering the tree")
 
+    # for to_drop in ['5-4', "7-6", "16-5", "9-8", "18-8", "11-10", "13-12", "15-16", "17-18", "19-19", "21-19", "23-19]:
+    #     # DROPS ONLY ONE TIME THE 5-4 NODE, ALL THE ERRORS NODES DEPENDS DIRECTLY FROM 5-4
+    #     if to_drop in tree.name_nodes:
+    #         tree.drop_node(to_drop)
+
+    # dropped = []
+    # for name_node in tree.name_nodes:
+    #     if name_node in tree.name_nodes:
+    #         if name_node.split("-")[0] != "3" and not tree.has_parents(name_node) and not tree.has_children(name_node):
+    #             tree.drop_node(name_node)
+    #             dropped.append(name_node)
+    #
+    # tree.plot_tree(figsize=(45, 25), title="Dropping extra nodes")
+    # print(dropped)
+    # for node_drop in dropped:
+    #     print(tree.get_node(node_drop))
     # Simple fit
     # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))

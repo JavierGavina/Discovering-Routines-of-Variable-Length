@@ -51,6 +51,7 @@ import warnings
 
 from itertools import product
 from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine, ClusterTree
+from collections import defaultdict
 
 sys.path.append("../")
 
@@ -606,17 +607,14 @@ class DRFL:
         print("LEN OLD ROUTINES", len(old_routines))
         for cluster in old_routines:
             starting_points = cluster.get_starting_points()
-            instances = cluster.get_sequences().get_subsequences(to_array=True)
             new_sequence = Sequence()
             to_keep = [starting_points.index(starting_points[0])]
             for i in range(1, len(starting_points)):
                 if starting_points[i] - starting_points[i - 1] >= self._m:
-                    # print(f"On Cluster Hierarchy {cluster.length_cluster_subsequences}; Keeping index {i} with value {starting_points[i]}")
                     to_keep.append(i)
 
-            # print(f"On hierarchy {cluster.length_cluster_subsequences}; Keeping indexes {to_keep}")
             for i in to_keep:
-                new_sequence.add_sequence(Subsequence(instance=instances[i], date=cluster.get_dates()[i], starting_point=i))
+                new_sequence.add_sequence(cluster.get_sequences().get_by_starting_point(starting_points[i]))
 
             instances = new_sequence.get_subsequences(to_array=True)
             new_centroid = np.mean(instances, axis=0)
@@ -626,7 +624,6 @@ class DRFL:
                 new_routines.add_routine(new_cluster)
 
         return new_routines
-
 
     # def __drop_consecutive_instances(self, cluster: Cluster) -> Cluster:
     #     starting_points = cluster.get_starting_points()
@@ -1850,9 +1847,12 @@ class DRGS(DRFL):
 
             # Union for the left and right routines from the actual hierarchy
             self.__hierarchical_routines.add_routine(unique_routines)
+
+            # Filter the routines with no child repeat and continue to next iteration
             actual_length += 1  # Increment the hierarchy
 
         self.__already_fitted = True  # Set the already_fitted attribute to True
+
 
     def get_results(self) -> HierarchyRoutine:
         """
@@ -1925,19 +1925,21 @@ class DRGS(DRFL):
                 # If the length is greater than the minimum length, add the edges to the cluster tree
                 if length > self.__length_range[0]:
                     # Iterate over the parent clusters
-                    for parent_cluster in self.__hierarchical_routines[length - 1]:
+                    for id_parent, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
                         # Check if the current cluster is the left child from the parent cluster and add the edge
-                        print(f"(NODE): {length}-{id_clust + 1}")
-                        if self.__is_left_child(parent_cluster, cluster):
-                            print(f"(LEFT): {length}-{id_clust + 1}")
-                            cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
+                        try:
+                            if self.__is_left_child(parent_cluster, cluster):
+                                cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
 
-                        # Check if the current cluster is the right child from the parent cluster and add the edge
-                        if self.__is_right_child(parent_cluster, cluster):
-                            print(f"(RIGHT): {length}-{id_clust + 1}")
-                            cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
+                            # Check if the current cluster is the right child from the parent cluster and add the edge
+                            if self.__is_right_child(parent_cluster, cluster):
+                                cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
 
-        cluster_tree.assing_names()
+                        except Exception as e:
+                            # print(f"ERROR ON Parent {length-1}-{id_parent} to the child {length}-{id_clust+1}\t-->\t {e}")
+                            pass
+
+        cluster_tree.assign_names()
         return cluster_tree
 
     def show_results(self) -> None:
