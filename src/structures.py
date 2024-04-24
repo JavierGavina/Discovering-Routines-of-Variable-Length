@@ -4643,8 +4643,6 @@ class ClusterTree:
             >>> tree.add_edge(1, 3, is_left=False)
         """
 
-        print("entro y toa la paranoia")
-
         # Check the validity of the plot parameters
         args = locals()
         self.__check_plot_params(**args)

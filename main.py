@@ -132,14 +132,13 @@ if __name__ == "__main__":
     feat_extraction.index = pd.date_range(start="2024-01-01", periods=len(feat_extraction))
     room_time_series = feat_extraction["N_room"]
 
-    drgs = DRGS(length_range=(3, 6), R=5, C=10, G=4, epsilon=1)
+    drgs = DRGS(length_range=(3, 6), R=5, C=15, G=45, epsilon=1)
     drgs.fit(room_time_series)
     drgs.plot_separate_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
                                             yticks_fontsize=20, figsize=(45, 25),
                                             linewidth_bars=2, xlim=(40, 140))
-    # drgs.show_results()
     tree = drgs.convert_to_cluster_tree()
-    tree.plot_tree( title="Filtering the tree")
+    tree.plot_tree( title="Final node evolution")
 
     # for to_drop in ['5-4', "7-6", "16-5", "9-8", "18-8", "11-10", "13-12", "15-16", "17-18", "19-19", "21-19", "23-19]:
     #     # DROPS ONLY ONE TIME THE 5-4 NODE, ALL THE ERRORS NODES DEPENDS DIRECTLY FROM 5-4

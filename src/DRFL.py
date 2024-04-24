@@ -604,7 +604,7 @@ class DRFL:
     def __drop_consecutive_instances(self, routines: Routines) -> Routines:
         old_routines = copy.deepcopy(routines)
         new_routines = Routines()
-        print("LEN OLD ROUTINES", len(old_routines))
+
         for cluster in old_routines:
             starting_points = cluster.get_starting_points()
             new_sequence = Sequence()
@@ -905,7 +905,7 @@ class DRFL:
             self.__routines = self.__routines.remove_subsets()
 
             # Drop consecutive instances
-            self.__routines = self.__drop_consecutive_instances(self.__routines)
+            # self.__routines = self.__drop_consecutive_instances(self.__routines)
 
         if len(self.__routines) == 0:
             warnings.warn("No routines have been discovered", UserWarning)
@@ -1768,6 +1768,35 @@ class DRGS(DRFL):
         super().fit(time_series)
         return super().get_results()
 
+    def __filtered_repeated_left_right_routines(self, parent_routine: Routines, child_routine: Routines):
+        filtered_child = Routines()
+        for parent in parent_routine:
+            left_child = []
+            right_child = []
+            for child in child_routine:
+                new_val = {"child": child, "n_instances": len(child.get_sequences())}
+                if self.__is_left_child(parent, child):
+                    left_child.append(new_val)
+
+                if self.__is_right_child(parent, child):
+                    right_child.append(new_val)
+
+            for left in left_child:
+                max_left = max(left_child, key=lambda x: x["n_instances"])
+                if left["n_instances"] == max_left["n_instances"]:
+                    if left["child"] not in filtered_child:
+                        filtered_child.add_routine(left["child"])
+                        break
+
+            for right in right_child:
+                max_right = max(right_child, key=lambda x: x["n_instances"])
+                if right["n_instances"] == max_right["n_instances"]:
+                    if right["child"] not in filtered_child:
+                        filtered_child.add_routine(right["child"])
+                        break
+
+        return filtered_child
+
     def fit(self, time_series: pd.Series) -> None:
         """
         Fit the DRGS algorithm to the time series data.
@@ -1839,20 +1868,23 @@ class DRGS(DRFL):
 
             # Remove repeated clusters
             unique_routines = routines_l_k.drop_duplicates()
-            # unique_routines = routines_l_k
 
             # Remove subsets
             unique_routines = unique_routines.remove_subsets()
-            # unique_routines = routines_l_k
 
             # Union for the left and right routines from the actual hierarchy
             self.__hierarchical_routines.add_routine(unique_routines)
 
             # Filter the routines with no child repeat and continue to next iteration
+            parent = self.__hierarchical_routines[actual_length - 1]
+            filtered_routine = self.__filtered_repeated_left_right_routines(parent_routine=parent, child_routine=unique_routines)
+
+            # Add the filtered routines to the hierarchical routines
+            self.__hierarchical_routines.add_routine(filtered_routine)
+
             actual_length += 1  # Increment the hierarchy
 
         self.__already_fitted = True  # Set the already_fitted attribute to True
-
 
     def get_results(self) -> HierarchyRoutine:
         """
@@ -1927,7 +1959,11 @@ class DRGS(DRFL):
                     # Iterate over the parent clusters
                     for id_parent, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
                         # Check if the current cluster is the left child from the parent cluster and add the edge
-                        try:
+
+                        if self.__is_left_child(parent_cluster, cluster) and self.__is_right_child(parent_cluster, cluster):
+                            print(f" EL HIJO {length}-{id_clust+1} ES IZQUIERDA Y DERECHA A LA VEZ DE {length-1}-{id_parent} WTFFFF")
+
+                        else:
                             if self.__is_left_child(parent_cluster, cluster):
                                 cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
 
@@ -1935,11 +1971,9 @@ class DRGS(DRFL):
                             if self.__is_right_child(parent_cluster, cluster):
                                 cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
 
-                        except Exception as e:
-                            # print(f"ERROR ON Parent {length-1}-{id_parent} to the child {length}-{id_clust+1}\t-->\t {e}")
-                            pass
 
         cluster_tree.assign_names()
+
         return cluster_tree
 
     def show_results(self) -> None:
@@ -2071,7 +2105,7 @@ class DRGS(DRFL):
                 if show_background_annotations:
                     for k in range(len(self.time_series)):
                         # if the bar is not coloured (its value is gray and not an array), annotate the value
-                        if not isinstance(colors[k], np.ndarray):
+                        if xlim[0] < k < xlim[1] and not isinstance(colors[k], np.ndarray):
                             plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
                                      s=f"{self.time_series[k]}", fontsize=text_fontsize,
                                      color="black")
@@ -2187,7 +2221,7 @@ class DRGS(DRFL):
 
                 # Set the colors for the time series bars
                 colors = ["gray"] * len(self.time_series)
-                print(f"(PLOT) Cluster {j + 1} of hierarchy {length}, starting points: {cluster.get_starting_points()}")
+
                 for sp in cluster.get_starting_points():
                     # Plot a vertical-dashed line at the starting point of each subsequence in the cluster within the x-axis limits
                     if xlim[0] <= sp <= xlim[1]:
@@ -2205,7 +2239,7 @@ class DRGS(DRFL):
                 if show_background_annotations:
                     for k in range(len(self.time_series)):
                         # if the bar is not coloured (its value is gray and not an array), annotate the value
-                        if not isinstance(colors[k], np.ndarray):
+                        if xlim[0] < k < xlim[1] and not isinstance(colors[k], np.ndarray):
                             plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
                                      s=f"{self.time_series[k]}", fontsize=text_fontsize,
                                      color="black")
