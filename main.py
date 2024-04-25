@@ -128,17 +128,27 @@ if __name__ == "__main__":
     # feat_extraction = group_by_hour(df, correspondencies)
     # pd.set_option('display.max_columns', None, 'display.max_rows', None)
     # feat_extraction.to_csv("data/out_feat_extraction.csv", index=True)
+
+    # time_series = pd.Series([60, 60, 60, 60, 60, 60, 2, 2, 60, 60, 60, 60, 60, 60, 2, 2, 60, 60, 60, 60, 60, 60])
+    # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+
+    # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
+    # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
+
     feat_extraction = pd.read_csv("data/out_feat_extraction.csv")
     feat_extraction.index = pd.date_range(start="2024-01-01", periods=len(feat_extraction))
     room_time_series = feat_extraction["N_room"]
 
-    drgs = DRGS(length_range=(3, 6), R=5, C=15, G=45, epsilon=1)
+    drgs = DRGS(length_range=(3, 100), R=5, C=50, G=35, epsilon=1, L=2, fusion_distance=0.001)
     drgs.fit(room_time_series)
-    drgs.plot_separate_hierarchical_results(title_fontsize=40, labels_fontsize=35, xticks_fontsize=18,
-                                            yticks_fontsize=20, figsize=(45, 25),
-                                            linewidth_bars=2, xlim=(40, 140))
+    os.makedirs("results", exist_ok=True)
+    drgs.plot_separate_hierarchical_results(title_fontsize=35, labels_fontsize=30, yticks_fontsize=20,
+                                            linewidth_bars=3, vline_width=3, xlim=(0, 300), figsize=(50, 25),
+                                            show_xticks=False, save_dir="results")
+    # drgs.show_results()
     tree = drgs.convert_to_cluster_tree()
-    tree.plot_tree( title="Final node evolution")
+    tree.plot_tree(title="Final node evolution", save_dir="results/final_tree.png", figsize=(14, 14))
+    routines = drgs.get_results()
 
     # for to_drop in ['5-4', "7-6", "16-5", "9-8", "18-8", "11-10", "13-12", "15-16", "17-18", "19-19", "21-19", "23-19]:
     #     # DROPS ONLY ONE TIME THE 5-4 NODE, ALL THE ERRORS NODES DEPENDS DIRECTLY FROM 5-4

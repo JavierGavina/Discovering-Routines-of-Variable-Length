@@ -99,7 +99,7 @@ class DRFL:
     """
 
     def __init__(self, m: int, R: Union[float, int], C: int, G: Union[float, int], epsilon: float,
-                 L: Union[float, int] = 0):
+                 L: Union[float, int] = 0, fusion_distance: Union[float, int] = 0.001) -> None:
         """
         Initialize the DRFL algorithm.
 
@@ -126,6 +126,7 @@ class DRFL:
         self._G: int | float = G
         self._epsilon: float = epsilon
         self._L: int | float = L
+        self._fusion_distance: int | float = fusion_distance
 
         self.__routines: Routines = Routines()
         self.__sequence: Sequence = Sequence()
@@ -165,7 +166,7 @@ class DRFL:
                         f"Invalid length_range values. The first value must be greater or equal than 2 and the second value must be greater than the first value. Got {value} instead")
 
             # Check if the distance threshold, magnitude and inverse magnitude are integer or a float
-            if key in ["R", "G", "L"]:
+            if key in ["R", "G", "L", "fusion_threshold"]:
                 if not isinstance(value, (int, float)):
                     raise TypeError(f"{key} must be an integer or a float. Got {type(value).__name__} instead")
 
@@ -232,6 +233,7 @@ class DRFL:
         saved_args = locals()
         integer_params = ["title_fontsize", "xticks_fontsize", "yticks_fontsize", "labels_fontsize",
                           "coloured_text_fontsize", "text_fontsize"]
+        integer_or_float_params = ["linewidth_bars", "vline_width", "hline_width"]
         tuple_params = ["figsize", "xlim"]
         bool_params = ["show_xticks", "show_horizontal_lines"]
 
@@ -265,9 +267,12 @@ class DRFL:
                     raise TypeError(f"{key} must be a boolean. Got {type(value).__name__}")
 
             # Check if linewidth_bars is an integer or a float
-            if key == "linewidth_bars":
+            if key in integer_or_float_params:
                 if not isinstance(value, (int, float)):
                     raise TypeError(f"{key} must be an integer or a float. Got {type(value).__name__}")
+
+                if value <= 0:
+                    raise ValueError(f"{key} must be greater than 0. Got {value}")
 
             # Check if save_dir is a string
             if key in "save_dir":
@@ -1420,8 +1425,9 @@ class DRGS(DRFL):
         >>> drgs.plot_results()
     """
 
-    def __init__(self, length_range: tuple[int, int], R: Union[float, int], C: int, G: Union[float, int],
-                 epsilon: float, L: Union[int, float] = 0) -> None:
+    def __init__(self, length_range: tuple[int, int], R: Union[float, int], C: int,
+                 G: Union[float, int], epsilon: float, L: Union[int, float] = 0,
+                 fusion_distance: Union[float, int] = 0.001) -> None:
         """
         Initialize the DRGS object with the parameters for the DRGS algorithm
 
@@ -1432,6 +1438,7 @@ class DRGS(DRFL):
             * G: `float | int`. magnitude threshold
             * epsilon: `float`. overlap parameter
             * L: `int | float`. length of the subsequence
+            * fusion_threshold: `float | int`. if the centroid distance between two clusters is less than this value, the clusters are fused
 
         Raises:
             TypeError: If any parameter is not of the correct type.
@@ -1443,7 +1450,7 @@ class DRGS(DRFL):
         super()._check_params(**params)
 
         # Set the attributes of the DRFL object by default
-        super().__init__(m=length_range[0], R=R, C=C, G=G, epsilon=epsilon, L=L)
+        super().__init__(m=length_range[0], R=R, C=C, G=G, epsilon=epsilon, L=L, fusion_distance=fusion_distance)
 
         # Set the attributes of the DRGS object
         self.__length_range = length_range
@@ -1553,7 +1560,15 @@ class DRGS(DRFL):
         # Get the starting points of the parent and child clusters
         parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
 
-        return all([x + 1 in parent_sp for x in child_sp])
+        # If its left child and is not a right child
+        if all([x + 1 in parent_sp for x in child_sp]) and not all([x in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x + 1 in parent_sp for x in child_sp]) and all([x in parent_sp for x in child_sp]):
+            return parent_sp[0] == child_sp[0]
+
+        return False
 
     @staticmethod
     def __is_right_child(parent: Cluster, child: Cluster) -> bool:
@@ -1582,7 +1597,15 @@ class DRGS(DRFL):
         # Get the starting points of the parent and child clusters
         parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
 
-        return all([x in parent_sp for x in child_sp])
+        # If its right child and is not a left child
+        if all([x in parent_sp for x in child_sp]) and not all([x + 1 in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x in parent_sp for x in child_sp]) and all([x + 1 in parent_sp for x in child_sp]):
+            return parent_sp[0] != child_sp[0]
+
+        return False
 
     def __grow_from_left(self, sequence: Sequence) -> Sequence:
         """
@@ -1768,6 +1791,19 @@ class DRGS(DRFL):
         super().fit(time_series)
         return super().get_results()
 
+    def __similar_clusters_fusion(self, routine: Routines):
+        new_routine = Routines()
+        new_routine.add_routine(routine[0])
+        for i in range(len(routine)):
+            for j in range(i + 1, len(routine)):
+                if routine[i].is_similar(routine[j], self._fusion_distance):
+                    new_routine.add_routine(routine[i].fusion(routine[j]))
+                else:
+                    new_routine.add_routine(routine[j])
+
+        new_routine = new_routine.drop_duplicates()
+        return new_routine
+
     def __filtered_repeated_left_right_routines(self, parent_routine: Routines, child_routine: Routines):
         filtered_child = Routines()
         for parent in parent_routine:
@@ -1872,12 +1908,16 @@ class DRGS(DRFL):
             # Remove subsets
             unique_routines = unique_routines.remove_subsets()
 
-            # Union for the left and right routines from the actual hierarchy
-            self.__hierarchical_routines.add_routine(unique_routines)
+            # # Union for the left and right routines from the actual hierarchy
+            # self.__hierarchical_routines.add_routine(unique_routines)
+
+            # Fusion of similar clusters
+            unique_routines = self.__similar_clusters_fusion(unique_routines)
 
             # Filter the routines with no child repeat and continue to next iteration
             parent = self.__hierarchical_routines[actual_length - 1]
-            filtered_routine = self.__filtered_repeated_left_right_routines(parent_routine=parent, child_routine=unique_routines)
+            filtered_routine = self.__filtered_repeated_left_right_routines(parent_routine=parent,
+                                                                            child_routine=unique_routines)
 
             # Add the filtered routines to the hierarchical routines
             self.__hierarchical_routines.add_routine(filtered_routine)
@@ -1960,10 +2000,7 @@ class DRGS(DRFL):
                     for id_parent, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
                         # Check if the current cluster is the left child from the parent cluster and add the edge
 
-                        if self.__is_left_child(parent_cluster, cluster) and self.__is_right_child(parent_cluster, cluster):
-                            print(f" EL HIJO {length}-{id_clust+1} ES IZQUIERDA Y DERECHA A LA VEZ DE {length-1}-{id_parent} WTFFFF")
-
-                        else:
+                        try:
                             if self.__is_left_child(parent_cluster, cluster):
                                 cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
 
@@ -1971,6 +2008,9 @@ class DRGS(DRFL):
                             if self.__is_right_child(parent_cluster, cluster):
                                 cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
 
+                        except Exception as e:
+                            print(
+                                f"error on parent: {length - 1}-{id_parent + 1}; and child: {length}-{id_clust + 1}, {e}")
 
         cluster_tree.assign_names()
 
@@ -2017,6 +2057,7 @@ class DRGS(DRFL):
                                   xticks_fontsize: int = 20, yticks_fontsize: int = 20, labels_fontsize: int = 20,
                                   figsize: tuple[int, int] = (30, 10), coloured_text_fontsize: int = 20,
                                   text_fontsize: int = 15, linewidth_bars: Union[int, float] = 1.5,
+                                  vline_width: Union[int, float] = 1.5, hline_width: Union[int, float] = 1.5,
                                   xlim: Optional[tuple[int, int]] = None, save_dir: Optional[str] = None):
 
         """
@@ -2038,6 +2079,8 @@ class DRGS(DRFL):
             * coloured_text_fontsize: `int` (default is 20). Size of the coloured text.
             * text_fontsize: `int` (default is 15). Size of the text.
             * linewidth_bars: `int` | `float` (default is 1.5). Width of the bars in the plot.
+            * vline_width: `int` | `float` (default is 1.5). Width of the vertical lines in the plot.
+            * hline_width: `int` | `float` (default is 1.5). Width of the horizontal lines in the plot.
             * xlim: `tuple[int, int]` (default is None). Limit of the x-axis with starting points.
             * save_dir: `str` (default is None). Directory to save the plot.
 
@@ -2083,15 +2126,15 @@ class DRGS(DRFL):
 
                 # Add horizontal lines for the minimum and maximum thesholds if required
                 if show_horizontal_lines:
-                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
-                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=hline_width)
+                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=hline_width)
 
                 # Set the colors for the time series bars
                 colors = ["gray"] * len(self.time_series)
                 for sp in cluster.get_starting_points():
                     # Plot a vertical-dashed line at the starting point of each subsequence in the cluster within the x-axis limits
                     if xlim[0] <= sp <= xlim[1]:
-                        plt.axvline(x=sp, color=base_colors[j], linestyle="--")
+                        plt.axvline(x=sp, color=base_colors[j], linestyle="--", linewidth=vline_width)
                         # Annotate the time series points with their values
                         for k in range(cluster.length_cluster_subsequences):
                             if sp + k <= xlim[1]:
@@ -2133,7 +2176,7 @@ class DRGS(DRFL):
 
                 # Set the limits of the x-axis and y-axis
                 plt.xlim(xlim[0] - 0.5, xlim[1])
-                plt.ylim(0, maximum + 1)
+                plt.ylim(0, int(maximum + np.ceil(maximum * 0.1)))
 
         # Adjust the layout of the plot
         plt.tight_layout()
@@ -2151,7 +2194,9 @@ class DRGS(DRFL):
                                            labels_fontsize: int = 20,
                                            figsize: tuple[int, int] = (30, 10), coloured_text_fontsize: int = 20,
                                            text_fontsize: int = 15, linewidth_bars: Union[int, float] = 1.5,
-                                           xlim: Optional[tuple[int, int]] = None, save_dir: Optional[str] = None):
+                                           vline_width: Union[int, float] = 1.5, hline_width: Union[int, float] = 1.5,
+                                           xlim: Optional[tuple[int, int]] = None, save_dir: Optional[str] = None,
+                                           top_hierarchy: Optional[int] = None):
 
         """
         This method uses matplotlib to plot the results of the algorithm.
@@ -2172,6 +2217,8 @@ class DRGS(DRFL):
             * coloured_text_fontsize: `int` (default is 20). Size of the coloured text.
             * text_fontsize: `int` (default is 15). Size of the text.
             * linewidth_bars: `int` | `float` (default is 1.5). Width of the bars in the plot.
+            * vline_width: `int` | `float` (default is 1.5). Width of the vertical dashed lines.
+            * hline_width: `int` | `float` (default is 1.5). Width of the horizontal dashed lines.
             * xlim: `tuple[int, int]` (default is None). Limit of the x-axis with starting points.
             * save_dir: `str` (default is None). Directory to save the plot.
 
@@ -2195,6 +2242,17 @@ class DRGS(DRFL):
         if not self.__already_fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
+        all_hierarchies = self.__hierarchical_routines.keys
+        if top_hierarchy is not None:
+            if not isinstance(top_hierarchy, int):
+                raise TypeError(f"top_hierarchy must be an integer. Got {type(top_hierarchy).__name__} instead.")
+
+            if all_hierarchies[0] > top_hierarchy:
+                raise ValueError(f"top_hierarchy must be greater than lower existent hierarchy {all_hierarchies[0]}. Got {top_hierarchy} instead.")
+
+        # set the top hierarchy to the maximum hierarchy if not provided
+        top_hierarchy = top_hierarchy or all_hierarchies[-1]
+
         # Calculate the number of clusters per routine and determine plot dimensions
         n_cluster_per_routine = [len(routine) for routine in self.__hierarchical_routines.values]
         n_columns = max(n_cluster_per_routine)
@@ -2207,7 +2265,7 @@ class DRGS(DRFL):
         # Plot each routine in the hierarchical routines
         for i, (length, routine) in enumerate(self.__hierarchical_routines.items):
             # Create the figure, grid layout and base colors for the plot
-            fig = plt.figure(figsize=figsize)
+            fig = plt.figure(figsize=figsize) if len(routine) > 1 else plt.figure(figsize=(figsize[0], int(figsize[1] // 2)))
             gs = gridspec.GridSpec(len(routine), 1, figure=fig)
 
             for j, cluster in enumerate(routine):
@@ -2216,8 +2274,8 @@ class DRGS(DRFL):
 
                 # Add horizontal lines for the minimum and maximum thesholds if required
                 if show_horizontal_lines:
-                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
-                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=linewidth_bars)
+                    plt.axhline(y=self._G, color=base_colors[j], linestyle=":", linewidth=hline_width)
+                    plt.axhline(y=self._L, color=base_colors[j], linestyle=":", linewidth=hline_width)
 
                 # Set the colors for the time series bars
                 colors = ["gray"] * len(self.time_series)
@@ -2225,7 +2283,7 @@ class DRGS(DRFL):
                 for sp in cluster.get_starting_points():
                     # Plot a vertical-dashed line at the starting point of each subsequence in the cluster within the x-axis limits
                     if xlim[0] <= sp <= xlim[1]:
-                        plt.axvline(x=sp, color=base_colors[j], linestyle="--")
+                        plt.axvline(x=sp, color=base_colors[j], linestyle="--", linewidth=vline_width)
                         # Annotate the time series points with their values
                         for k in range(cluster.length_cluster_subsequences):
                             if sp + k <= xlim[1]:
@@ -2267,16 +2325,18 @@ class DRGS(DRFL):
 
                 # Set the limits of the x-axis and y-axis
                 plt.xlim(xlim[0] - 0.5, xlim[1])
-                plt.ylim(0, maximum + 1)
+                plt.ylim(0, int(maximum + np.ceil(0.2 * maximum)))
 
             # Adjust the layout of the plot
             plt.tight_layout()
 
+            # Save the plot to the specified directory if provided
+            if save_dir:
+                plt.savefig(f"{save_dir}/hierarchy_{length}.png")
+
             plt.show()
 
-        # Save the plot to the specified directory if provided
-        if save_dir:
-            plt.savefig(save_dir)
 
-        # Display the plot
-        plt.show()
+            if length >= top_hierarchy:
+                break
+

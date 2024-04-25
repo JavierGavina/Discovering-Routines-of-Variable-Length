@@ -1044,8 +1044,35 @@ class Sequence:
         if not isinstance(other, Sequence):
             raise TypeError(f"other must be an instance of Sequence. Got {type(other).__name__} instead")
 
+        if self.__length != other.length_subsequences:
+            raise ValueError(
+                f"The length of the subsequences must be the same. Got {self.__length} and {other.length_subsequences} instead")
+
+        # new_sequence = Sequence()
+        # new_sequence.__list_sequences = self.__list_sequences + other.__list_sequences
+        # new_sequence.__length = self.__length
         new_sequence = Sequence()
-        new_sequence.__list_sequences = self.__list_sequences + other.__list_sequences
+        starting_points_self = self.get_starting_points()
+        starting_points_other = other.get_starting_points()
+        min_sp = min(starting_points_self + starting_points_other)
+        max_sp = max(starting_points_self + starting_points_other)
+        for sp in range(min_sp, max_sp + 1):
+            self_subsequence = self.get_by_starting_point(sp)
+            other_subsequence = other.get_by_starting_point(sp)
+
+            if self_subsequence is not None and other_subsequence is not None:
+                if not self_subsequence == other_subsequence:
+                    raise ValueError(
+                        f"The subsequences must be the same at starting point {sp}. Got {self_subsequence} and {other_subsequence} instead")
+
+                new_sequence.add_sequence(self_subsequence)
+
+            if self_subsequence is not None and other_subsequence is None:
+                new_sequence.add_sequence(self_subsequence)
+
+            if other_subsequence is not None and self_subsequence is None:
+                new_sequence.add_sequence(other_subsequence)
+
         return new_sequence
 
     def __eq__(self, other: 'Sequence') -> bool:
@@ -1992,6 +2019,68 @@ class Cluster:
         """
 
         return sum([subsequence.magnitude() for subsequence in self.__instances])
+
+    def fusion(self, other: 'Cluster') -> 'Cluster':
+        """
+        Fusion of two clusters.
+
+        Parameters:
+            * cluster1: `Cluster`. The first cluster to fuse.
+            * cluster2: `Cluster`. The second cluster to fuse.
+
+        Returns:
+            `Cluster`. The fusion of the two clusters.
+
+        Raises:
+            TypeError: If the cluster1 or cluster2 are not Cluster objects.
+
+        Examples:
+            >>> cluster1 = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> cluster2 = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=1))
+            >>> fusion = cluster1.fusion(cluster2)
+            >>> print(fusion)
+            Cluster(
+                - centroid=np.array([2. 2. 2.])
+                - instances=[[1, 2, 3], [3, 2, 1]]
+                - date=datetime.date(2024, 1, 1)
+                - starting_point=[0, 1]
+            )
+        """
+
+        if not isinstance(other, Cluster):
+            raise TypeError(f"The other must be a Cluster object. Got {type(other).__name__} instead.")
+
+        return self + other
+
+    def is_similar(self, other: 'Cluster', distance_threshold: Union[float, int]=0.001) -> bool:
+        """
+        Check if the cluster is similar to another cluster
+
+        Parameters:
+            * other: `Cluster`. The cluster to compare
+            * distance_threshold: `Union[float, int]`. The distance threshold. Default is 0.001
+
+        Returns:
+            `bool`. `True` if the cluster is similar, `False` otherwise
+
+        Examples:
+            >>> sequence1 = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence2 = Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
+            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), sequence1)
+            >>> cluster2 = Cluster(np.array([3, 4, 5, 6]), sequence2)
+            >>> cluster1.is_similar(cluster2)
+            True
+
+            >>> sequence3 = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence4 = Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 1))
+            >>> cluster3 = Cluster(np.array([3, 4, 5, 6]), sequence3)
+            >>> cluster4 = Cluster(np.array([7, 8, 9, 10]), sequence4)
+            >>> cluster3.is_similar(cluster4)
+            False
+        """
+
+        distance = np.max(np.abs(self.centroid - other.centroid))
+        return distance < distance_threshold
 
 
 class Routines:
@@ -4671,4 +4760,6 @@ class ClusterTree:
             plt.savefig(save_dir)
 
         # Show the plot
-        plt.show(block=True)
+        plt.show()
+
+
