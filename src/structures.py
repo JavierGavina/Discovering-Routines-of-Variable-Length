@@ -353,7 +353,7 @@ and see how are the clusters grown, if from the left or from the right.
         * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
         * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
         * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
-        * ``is_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
+        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
         * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
         * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
         * ``get_cluster_from_index(index: int) -> Cluster``: returns the cluster from the index
@@ -368,15 +368,19 @@ and see how are the clusters grown, if from the left or from the right.
             * ``edges: nx.classes.reportviews.OutEdgeDataView``: returns the edges of the graph
 """
 
+from typing import Union, Optional, Iterator
+from copy import deepcopy
+from warnings import warn
+
 import networkx as nx
 import numpy as np
-import datetime
-from typing import Union, Optional, Iterator
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 
-import copy
+import datetime
+import json
+import os
 
 
 class Subsequence:
@@ -654,7 +658,9 @@ class Subsequence:
             {'instance': np.array([1, 2, 3, 4]), 'date': datetime.date(2021, 1, 1), 'starting_point': 0}
         """
 
-        return {"instance": self.__instance, "date": self.__date, "starting_point": self.__starting_point}
+        date = self.__date.strftime("%m/%d/%Y, %H:%M:%S")
+
+        return {"instance": self.__instance, "date": date, "starting_point": self.__starting_point}
 
     def magnitude(self) -> float:
         """
@@ -793,7 +799,7 @@ class Sequence:
             self.__check_validity_params(subsequence)
 
             # Make a deep copy of the subsequence
-            new_subsequence = copy.deepcopy(subsequence)
+            new_subsequence = deepcopy(subsequence)
             self.__list_sequences: list[Subsequence] = [new_subsequence]
 
             # Set the length of the sequence
@@ -1163,7 +1169,7 @@ class Sequence:
 
         # Is necessary to convert the arrays to list for checking properly if the new sequence exists
         for idx, dictionary in enumerate(self_collection):
-            dictionary["instance"] = dictionary["instance"].tolist()
+            dictionary["instance"] = dictionary["instance"]
             new_self_collection.append(dictionary)
 
         # convert to collection and transform from array to list
@@ -1404,8 +1410,8 @@ class Sequence:
         collection = []
         for subseq in self.__list_sequences:
             collection.append({
-                'instance': subseq.get_instance(),
-                'date': subseq.get_date(),
+                'instance': subseq.get_instance().tolist(),
+                'date': subseq.get_date().strftime("%Y/%m/%d, %H:%M:%S"),
                 'starting_point': subseq.get_starting_point()
             })
 
@@ -1439,6 +1445,8 @@ class Cluster:
         * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
         * ``get_dates() -> list[date]``: returns the dates of the subsequences
         * ``cumulative_magnitude() -> float``: returns the cumulative magnitude of the cluster
+        * ``fusion(other: Cluster) -> Cluster``: fuses two clusters together
+        * ``is_similar(other: Cluster, distance_threshold: Union[float, int]=0.001) -> bool``: checks if two clusters are similar based on the distance threshold
 
 
     Examples:
@@ -1468,6 +1476,17 @@ class Cluster:
         >>> cluster.update_centroid()
         >>> cluster.centroid
         np.array([3, 4, 5, 6])
+
+        >>> cluster.cumulative_magnitude()
+        12.0
+
+        >>> cluster2 = Cluster(np.array([1, 1, 1, 1]), sequence)
+        >>> cluster.is_similar(cluster2, distance_threshold=0.001)
+        True
+
+        >>> cluster3 = Cluster(np.array([5,5,5,5]), sequence)
+        >>> cluster3.is_similar(cluster2, distance_threshold=0.001)
+        False
     """
 
     def __init__(self, centroid: np.ndarray, instances: 'Sequence') -> None:
@@ -1490,7 +1509,7 @@ class Cluster:
         self.__check_validity_params(centroid, instances)
 
         # Make a deep copy of the instances to avoid modifying the original sequence
-        new_instances = copy.deepcopy(instances)
+        new_instances = deepcopy(instances)
 
         # Set the length centroid and the instances
         self.__length: int = new_instances.length_subsequences
@@ -1833,7 +1852,7 @@ class Cluster:
 
         Raises:
             TypeError: if the parameters are not of the correct type
-            ValueError: if the length of the centroid is not the same as the length of the subsequences
+            ValueError: if the length of the centroid is different from the length of the subsequences
         """
 
         # Check if the centroid is an instance of np.ndarray
@@ -1853,7 +1872,16 @@ class Cluster:
     def centroid(self) -> np.ndarray:
         """
         Returns the centroid of the cluster
-        :return: np.ndarray. The centroid of the cluster
+
+        Returns:
+             np.ndarray. The centroid of the cluster
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6, 7]), sequence)
+            >>> cluster.centroid
+            np.array([3, 4, 5, 6, 7])
         """
         return self.__centroid
 
@@ -1867,7 +1895,15 @@ class Cluster:
 
         Raises:
             TypeError: if the parameter is not a `Subsequence` or a numpy array
-            ValueError: if the length of the subsequence is not the same as the length of the subsequences
+            ValueError: if the length of the subsequence is different from the length of the subsequences
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4, 5]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8, 9]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6, 7]), sequence)
+            >>> cluster.centroid = np.array([1, 2, 3, 4, 5])
+            >>> cluster.centroid
+            np.array([1, 2, 3, 4, 5])
         """
 
         # Check if the length of the subsequence is the same as the length of the subsequences
@@ -1993,11 +2029,20 @@ class Cluster:
 
         Returns:
              `list[int] | np.ndarray`. The starting points of the subsequences
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+            >>> cluster.get_starting_points()
+            [0, 4]
         """
 
+        # Return the starting points as a numpy array
         if to_array:
             return np.array(self.__instances.get_starting_points())
 
+        # Return the starting points as a list
         return self.__instances.get_starting_points()
 
     def get_dates(self) -> list[datetime.date]:
@@ -2006,6 +2051,13 @@ class Cluster:
 
         Returns:
              `list[datetime.date]`. The dates of the subsequences
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+            >>> cluster.get_dates()
+            [datetime.date(2021, 1, 1), datetime.date(2021, 1, 2)]
         """
 
         return self.__instances.get_dates()
@@ -2016,6 +2068,13 @@ class Cluster:
 
         Returns:
              `float`. The magnitude's sum of the subsequences
+
+        Examples:
+            >>> sequence = Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+            >>> sequence.add_sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+            >>> cluster = Cluster(np.array([3, 4, 5, 6]), sequence)
+            >>> cluster.cumulative_magnitude()
+            12.0
         """
 
         return sum([subsequence.magnitude() for subsequence in self.__instances])
@@ -2025,14 +2084,13 @@ class Cluster:
         Fusion of two clusters.
 
         Parameters:
-            * cluster1: `Cluster`. The first cluster to fuse.
-            * cluster2: `Cluster`. The second cluster to fuse.
+            * other: `Cluster`. The first cluster to fuse.
 
         Returns:
             `Cluster`. The fusion of the two clusters.
 
         Raises:
-            TypeError: If the cluster1 or cluster2 are not Cluster objects.
+            TypeError: If the other is not an instance of Cluster.
 
         Examples:
             >>> cluster1 = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
@@ -2047,12 +2105,13 @@ class Cluster:
             )
         """
 
+        # Check if the other is a Cluster instance
         if not isinstance(other, Cluster):
             raise TypeError(f"The other must be a Cluster object. Got {type(other).__name__} instead.")
 
         return self + other
 
-    def is_similar(self, other: 'Cluster', distance_threshold: Union[float, int]=0.001) -> bool:
+    def is_similar(self, other: 'Cluster', distance_threshold: Union[float, int] = 0.001) -> bool:
         """
         Check if the cluster is similar to another cluster
 
@@ -2684,30 +2743,44 @@ class Routines:
             This method does not modify the original `Routine`, it returns a new one without the dropped clusters
         """
 
+        # Check if the indexes to drop are a list of integers
+        if not isinstance(to_drop, list):
+            raise TypeError(
+                f"to_drop has to be a list of integers. Got {type(to_drop).__name__} instead")
+
+        # Check if the indexes are integers
+        if not all(isinstance(idx, int) for idx in to_drop):
+            raise TypeError(
+                f"the indexes to drop have to be integers. Got list {[type(v).__name__ for v in to_drop]}, instead")
+
+        # Check if the indexes are integers
         new_routines = Routines()
+
+        # Checks if the index of the cluster is in the list of indexes to drop
         for idx, cluster in enumerate(self.__routines):
             if idx not in to_drop:
                 new_routines.add_routine(cluster)
+
         return new_routines
 
-    def get_routines(self) -> list[Cluster]:
-        """
-        Returns the clusters of the `Routines`
-
-        Returns
-            `list[Cluster]`. Returns all the clusters of the routines as a list of clusters
-
-        Examples:
-            >>> routines = Routines()
-            >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-            >>> routines.add_routine(cluster1)
-            >>> routines.add_routine(cluster2)
-            >>> routines.get_routines()
-            [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)]), Cluster(centroid=np.array([7, 8, 9, 10]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])]
-        """
-
-        return self.__routines
+    # def get_routines(self) -> list[Cluster]:
+    #     """
+    #     Returns the clusters of the `Routines`
+    #
+    #     Returns
+    #         `list[Cluster]`. Returns all the clusters of the routines as a list of clusters
+    #
+    #     Examples:
+    #         >>> routines = Routines()
+    #         >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
+    #         >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+    #         >>> routines.add_routine(cluster1)
+    #         >>> routines.add_routine(cluster2)
+    #         >>> routines.get_routines()
+    #         [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)]), Cluster(centroid=np.array([7, 8, 9, 10]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])]
+    #     """
+    #
+    #     return self.__routines
 
     def get_centroids(self) -> list[np.ndarray]:
         """
@@ -2752,7 +2825,7 @@ class Routines:
         collection = []
         for routine in self.__routines:
             collection.append({
-                'centroid': routine.centroid,
+                'centroid': routine.centroid.tolist(),
                 'instances': routine.get_sequences().to_collection()
             })
         return collection
@@ -3160,77 +3233,6 @@ class HierarchyRoutine:
 
         return True
 
-    def is_empty(self) -> bool:
-        return len(self.__list_routines) == 0
-
-    def add_routine(self, routine: Routines) -> None:
-        """
-        Adds a routine to the HierarchyRoutine.
-        If the key (hierarchy) already exists, it updates the value (Routine).
-        If not, it creates a new key, value
-
-        Parameters:
-            * routine: `Routines`. The routine to add
-
-        Raises:
-            TypeError: if the routine is not an instance of Routines
-            ValueError: if the routine is empty
-
-        Examples:
-            >>> routine = Routines(cluster=Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
-            >>> routine2 = Routines(cluster=Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
-
-            >>> hierarchy_routine = HierarchyRoutine(routine)
-            >>> hierarchy_routine.add_routine(routine2)
-            HierachyRoutine(
-                [Hierarchy: 3.
-                    Routines(
-                        list_routines=[
-                            Cluster(
-                                - centroid = [3, 4, 5],
-                                - instances = [[1, 2, 3]]
-                                - starting_points = [0]
-                                - dates = [datetime.date(2021, 1, 1)]
-                            )
-                        ]
-                    )
-                ],
-                [Hierarchy: 4.
-                    Routines(
-                        list_routines=[
-                            Cluster(
-                                - centroid = [7, 8, 9, 10],
-                                - instances = [[5, 6, 7, 8]]
-                                - starting_points = [4]
-                                - dates = [datetime.date(2021, 1, 2)]
-                            )
-                        ]
-                    )
-                ]
-            )
-        """
-
-        # Check if the routine is an instance of Routines
-        if not isinstance(routine, Routines):
-            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine).__name__}")
-
-        # Check if the routine is empty
-        if routine.is_empty():
-            raise ValueError("routine cannot be empty")
-
-        # Get the hierarchy of the routine
-        length_clusters = routine.hierarchy
-
-        # If doesn't exist, we create a new tuple key, value
-        if length_clusters not in self.__hierarchy:
-            self.__list_routines.append(routine)
-            self.__hierarchy.append(length_clusters)
-
-        # If it exists, we update the value
-        else:
-            idx = self.__hierarchy.index(length_clusters)
-            self.__list_routines[idx] = routine
-
     @property
     def keys(self) -> list[int]:
         """
@@ -3329,6 +3331,77 @@ class HierarchyRoutine:
         """
         return zip(self.__hierarchy, self.__list_routines)
 
+    def is_empty(self) -> bool:
+        return len(self.__list_routines) == 0
+
+    def add_routine(self, routine: Routines) -> None:
+        """
+        Adds a routine to the HierarchyRoutine.
+        If the key (hierarchy) already exists, it updates the value (Routine).
+        If not, it creates a new key, value
+
+        Parameters:
+            * routine: `Routines`. The routine to add
+
+        Raises:
+            TypeError: if the routine is not an instance of Routines
+            ValueError: if the routine is empty
+
+        Examples:
+            >>> routine = Routines(cluster=Cluster(np.array([3, 4, 5]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+            >>> routine2 = Routines(cluster=Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4)))
+
+            >>> hierarchy_routine = HierarchyRoutine(routine)
+            >>> hierarchy_routine.add_routine(routine2)
+            HierachyRoutine(
+                [Hierarchy: 3.
+                    Routines(
+                        list_routines=[
+                            Cluster(
+                                - centroid = [3, 4, 5],
+                                - instances = [[1, 2, 3]]
+                                - starting_points = [0]
+                                - dates = [datetime.date(2021, 1, 1)]
+                            )
+                        ]
+                    )
+                ],
+                [Hierarchy: 4.
+                    Routines(
+                        list_routines=[
+                            Cluster(
+                                - centroid = [7, 8, 9, 10],
+                                - instances = [[5, 6, 7, 8]]
+                                - starting_points = [4]
+                                - dates = [datetime.date(2021, 1, 2)]
+                            )
+                        ]
+                    )
+                ]
+            )
+        """
+
+        # Check if the routine is an instance of Routines
+        if not isinstance(routine, Routines):
+            raise TypeError(f"routine has to be an instance of Routines. Got {type(routine).__name__}")
+
+        # Check if the routine is empty
+        if routine.is_empty():
+            raise ValueError("routine cannot be empty")
+
+        # Get the hierarchy of the routine
+        length_clusters = routine.hierarchy
+
+        # If doesn't exist, we create a new tuple key, value
+        if length_clusters not in self.__hierarchy:
+            self.__list_routines.append(routine)
+            self.__hierarchy.append(length_clusters)
+
+        # If it exists, we update the value
+        else:
+            idx = self.__hierarchy.index(length_clusters)
+            self.__list_routines[idx] = routine
+
     def to_dictionary(self) -> dict:
         """
         Returns the routines as a dictionary
@@ -3369,6 +3442,108 @@ class HierarchyRoutine:
             out_dict[hierarchy] = self.__list_routines[idx].to_collection()
         return out_dict
 
+    def to_json(self, path_out: str):
+
+        if not isinstance(path_out, str):
+            raise TypeError(f"The path_out must be a string, got {type(path_out).__name__} instead")
+
+        if not path_out.endswith('.json'):
+            raise ValueError(f"The output file must be a json file format, got {path_out} instead")
+
+        dictionary = self.to_dictionary()
+
+        with open(path_out, 'w') as file:
+            json.dump(dictionary, file, indent=3)
+
+    def from_json(self, path_in: str) -> None:
+        """
+        Parameters:
+            * path_in: `str`. The path to the json file
+
+        Raises:
+            TypeError: if the path_in is not a string
+            ValueError: if the input file is not a json file format
+            FileNotFoundError: if the file does not exist in the directory
+            JSONDecodeError: if the file is not a valid json file
+        """
+
+        if not isinstance(path_in, str):
+            raise TypeError(f"The path_in must be a string, got {type(path_in).__name__} instead")
+
+        if not path_in.endswith('.json'):
+            raise ValueError(f"The input file must be a json file format, got {path_in} instead")
+
+        if not os.path.exists(path_in):
+            raise FileNotFoundError(
+                f"The file {path_in} does not exist in the directory {os.getcwd()} with the files: \n {os.listdir()}")
+
+        self.__hierarchy: list[int] = []
+        self.__list_routines: list[Routines] = []
+
+        with open(path_in, 'r') as file:
+            try:
+                dictionary = json.load(file)
+
+            except json.JSONDecodeError:
+                raise ValueError(f"The file {path_in} is not a valid json file")
+
+            for hierarchy, routines in dictionary.items():
+                self.__hierarchy.append(int(hierarchy))
+                new_routine = Routines()
+                for cluster in routines:
+                    centroid = np.array([float(x) for x in cluster['centroid']])
+                    all_instances = cluster['instances']
+                    sequence = Sequence()
+                    for instance in all_instances:
+                        subseq = np.array([float(x) for x in instance['instance']])
+                        starting_point = int(instance['starting_point'])
+                        date = datetime.datetime.strptime(instance['date'], "%Y/%m/%d, %H:%M:%S")
+
+                        subsequence = Subsequence(subseq, date, starting_point)
+                        sequence.add_sequence(subsequence)
+
+                    new_routine.add_routine(Cluster(centroid, sequence))
+
+                self.__list_routines.append(new_routine)
+
+            print(f"File {path_in} imported successfully")
+
+    def convert_to_cluster_tree(self) -> 'ClusterTree':
+
+        if self.is_empty():
+            warn("The hierarchy routine is empty. Returning an empty ClusterTree object")
+            return ClusterTree()
+
+        # Create a ClusterTree object
+        cluster_tree = ClusterTree()
+
+        # Assign the nodes to the cluster tree and iterate over all hierarchical routines
+        for length, routine in self.items:
+            for id_clust, cluster in enumerate(routine):
+                # Assign the node to the cluster tree
+                cluster_tree.assign_node(cluster)
+
+                # If the length is greater than the minimum length, add the edges to the cluster tree
+                if length > self.keys[0]:
+                    # Iterate over the parent clusters
+                    for id_parent, parent_cluster in enumerate(self[length - 1]):
+
+                        # Check if the current cluster is the left child from the parent cluster and add the edge
+                        try:
+                            if cluster_tree.is_left_child(parent_cluster, cluster):
+                                cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
+
+                            # Check if the current cluster is the right child from the parent cluster and add the edge
+                            if cluster_tree.is_right_child(parent_cluster, cluster):
+                                cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
+
+                        except Exception as e:
+                            print(
+                                f"error on parent: {length - 1}-{id_parent + 1}; and child: {length}-{id_clust + 1}, {e}")
+
+        cluster_tree.assign_names()
+        return cluster_tree
+
 
 class ClusterTree:
     """
@@ -3389,7 +3564,7 @@ class ClusterTree:
         * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
         * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
         * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
-        * ``is_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
+        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
         * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
         * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
         * ``get_cluster_from_index(index: int) -> Cluster``: returns the cluster from the index
@@ -3451,10 +3626,10 @@ class ClusterTree:
         >>> tree.has_parents(2)
         True
 
-        >>> tree.is_left_child(1, 2)
+        >>> tree.is_existent_left_child(1, 2)
         True
 
-        >>> tree.is_left_child(2, 1)
+        >>> tree.is_existent_left_child(2, 1)
         False
 
         >>> tree.is_child(1, 2)
@@ -3679,6 +3854,99 @@ class ClusterTree:
             raise TypeError(f"edges has to be an instance of OutEdgeDataView. Got {type(edges).__name__} instead")
 
         return list(edges)
+
+    @staticmethod
+    def __get_parent_child_starting_points(parent: Cluster, child: Cluster) -> tuple[list[int], list[int]]:
+        # Check if the parent and child clusters are Cluster objects
+        if not isinstance(parent, Cluster):
+            raise TypeError(f"The parent must be a Cluster object. Got {type(parent).__name__} instead.")
+
+        if not isinstance(child, Cluster):
+            raise TypeError(f"The child must be a Cluster object. Got {type(child).__name__} instead.")
+
+        # Get the parent and child sequences
+        parent_sequences = parent.get_sequences()
+        child_sequences = child.get_sequences()
+
+        # Get the starting points of the parent and child sequences
+        parent_starting_points = parent_sequences.get_starting_points()
+        child_starting_points = child_sequences.get_starting_points()
+
+        return parent_starting_points, child_starting_points
+
+    @staticmethod
+    def is_left_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the left child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the left child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_left = drgs.is_left_child(parent, child)
+            >>> print(is_left)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
+
+        # If its left child and is not a right child
+        if all([x + 1 in parent_sp for x in child_sp]) and not all([x in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x + 1 in parent_sp for x in child_sp]) and all([x in parent_sp for x in child_sp]):
+            return parent_sp[0] == child_sp[0]
+
+        return False
+
+    @staticmethod
+    def is_right_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the right child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the right child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_right = drgs.is_right_child(parent, child)
+            >>> print(is_right)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
+
+        # If its right child and is not a left child
+        if all([x in parent_sp for x in child_sp]) and not all([x + 1 in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x in parent_sp for x in child_sp]) and all([x + 1 in parent_sp for x in child_sp]):
+            return parent_sp[0] != child_sp[0]
+
+        return False
 
     def __check_and_convert_node(self, node: Union[Cluster, int, str]) -> int:
         """
@@ -4297,8 +4565,9 @@ class ClusterTree:
 
         return is_child_value
 
-    def is_left_child(self, parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool:
+    def is_existent_left_child(self, parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool:
         """
+
         Indicating the parent and child nodes, returns if the child is the left child from the parent
 
         Parameters:
@@ -4322,7 +4591,7 @@ class ClusterTree:
             >>> tree.assign_node(cluster2)
 
             >>> tree.add_edge(0, 1, is_left=True)
-            >>> tree.__is_left_child(0, 1)
+            >>> tree.is_left_child(0, 1)
             True
         """
 
@@ -4761,5 +5030,3 @@ class ClusterTree:
 
         # Show the plot
         plt.show()
-
-

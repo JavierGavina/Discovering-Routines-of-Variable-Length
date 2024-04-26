@@ -51,7 +51,8 @@ import warnings
 
 from itertools import product
 from src.structures import Subsequence, Sequence, Cluster, Routines, HierarchyRoutine, ClusterTree
-from collections import defaultdict
+
+import time
 
 sys.path.append("../")
 
@@ -1494,118 +1495,34 @@ class DRGS(DRFL):
         return left + right
 
     @staticmethod
-    def __get_parent_child_starting_points(parent: Cluster, child: Cluster):
-        """
-        Get the starting points of the parent and child clusters.
+    def __filtered_repeated_left_right_routines(parent_routine: Routines, child_routine: Routines):
+        filtered_child = Routines()
+        for parent in parent_routine:
+            left_child = []
+            right_child = []
+            for child in child_routine:
+                new_val = {"child": child, "n_instances": len(child.get_sequences())}
+                if ClusterTree().is_left_child(parent, child):
+                    left_child.append(new_val)
 
-        Parameters:
-            * parent: `Cluster`. The parent cluster.
-            * child: `Cluster`. The child cluster.
+                if ClusterTree().is_right_child(parent, child):
+                    right_child.append(new_val)
 
-        Returns:
-            `tuple[list[int], list[int]]`. The starting points of the parent and child clusters.
+            for left in left_child:
+                max_left = max(left_child, key=lambda x: x["n_instances"])
+                if left["n_instances"] == max_left["n_instances"]:
+                    if left["child"] not in filtered_child:
+                        filtered_child.add_routine(left["child"])
+                        break
 
-        Raises:
-            TypeError: If the parent or child clusters are not Cluster objects.
+            for right in right_child:
+                max_right = max(right_child, key=lambda x: x["n_instances"])
+                if right["n_instances"] == max_right["n_instances"]:
+                    if right["child"] not in filtered_child:
+                        filtered_child.add_routine(right["child"])
+                        break
 
-        Examples:
-            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=1))
-            >>> parent_starting_points, child_starting_points = DRGS.__get_parent_child_starting_points(parent, child)
-            >>> print(parent_starting_points, child_starting_points)
-            ([0], [1])
-        """
-
-        # Check if the parent and child clusters are Cluster objects
-        if not isinstance(parent, Cluster):
-            raise TypeError(f"The parent must be a Cluster object. Got {type(parent).__name__} instead.")
-
-        if not isinstance(child, Cluster):
-            raise TypeError(f"The child must be a Cluster object. Got {type(child).__name__} instead.")
-
-        # Get the parent and child sequences
-        parent_sequences = parent.get_sequences()
-        child_sequences = child.get_sequences()
-
-        # Get the starting points of the parent and child sequences
-        parent_starting_points = parent_sequences.get_starting_points()
-        child_starting_points = child_sequences.get_starting_points()
-
-        return parent_starting_points, child_starting_points
-
-    @staticmethod
-    def __is_left_child(parent: Cluster, child: Cluster) -> bool:
-        """
-        Check if a cluster is the left child of another cluster.
-
-        Parameters:
-            * parent: `Cluster`. The parent cluster.
-            * child: `Cluster`. The child cluster.
-
-        Returns:
-            `bool`. True if the child cluster is the left child of the parent cluster, False otherwise.
-
-        Raises:
-            TypeError: If the parent or child clusters are not Cluster objects.
-
-        Examples:
-            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
-            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
-            >>> is_left = drgs.__is_left_child(parent, child)
-            >>> print(is_left)
-            False
-        """
-
-        # Get the starting points of the parent and child clusters
-        parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
-
-        # If its left child and is not a right child
-        if all([x + 1 in parent_sp for x in child_sp]) and not all([x in parent_sp for x in child_sp]):
-            return True
-
-        # If its both left and right childs
-        if all([x + 1 in parent_sp for x in child_sp]) and all([x in parent_sp for x in child_sp]):
-            return parent_sp[0] == child_sp[0]
-
-        return False
-
-    @staticmethod
-    def __is_right_child(parent: Cluster, child: Cluster) -> bool:
-        """
-        Check if a cluster is the right child of another cluster.
-
-        Parameters:
-            * parent: `Cluster`. The parent cluster.
-            * child: `Cluster`. The child cluster.
-
-        Returns:
-            `bool`. True if the child cluster is the right child of the parent cluster, False otherwise.
-
-        Raises:
-            TypeError: If the parent or child clusters are not Cluster objects.
-
-        Examples:
-            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
-            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
-            >>> is_right = drgs.__is_right_child(parent, child)
-            >>> print(is_right)
-            False
-        """
-
-        # Get the starting points of the parent and child clusters
-        parent_sp, child_sp = DRGS.__get_parent_child_starting_points(parent, child)
-
-        # If its right child and is not a left child
-        if all([x in parent_sp for x in child_sp]) and not all([x + 1 in parent_sp for x in child_sp]):
-            return True
-
-        # If its both left and right childs
-        if all([x in parent_sp for x in child_sp]) and all([x + 1 in parent_sp for x in child_sp]):
-            return parent_sp[0] != child_sp[0]
-
-        return False
+        return filtered_child
 
     def __grow_from_left(self, sequence: Sequence) -> Sequence:
         """
@@ -1804,35 +1721,6 @@ class DRGS(DRFL):
         new_routine = new_routine.drop_duplicates()
         return new_routine
 
-    def __filtered_repeated_left_right_routines(self, parent_routine: Routines, child_routine: Routines):
-        filtered_child = Routines()
-        for parent in parent_routine:
-            left_child = []
-            right_child = []
-            for child in child_routine:
-                new_val = {"child": child, "n_instances": len(child.get_sequences())}
-                if self.__is_left_child(parent, child):
-                    left_child.append(new_val)
-
-                if self.__is_right_child(parent, child):
-                    right_child.append(new_val)
-
-            for left in left_child:
-                max_left = max(left_child, key=lambda x: x["n_instances"])
-                if left["n_instances"] == max_left["n_instances"]:
-                    if left["child"] not in filtered_child:
-                        filtered_child.add_routine(left["child"])
-                        break
-
-            for right in right_child:
-                max_right = max(right_child, key=lambda x: x["n_instances"])
-                if right["n_instances"] == max_right["n_instances"]:
-                    if right["child"] not in filtered_child:
-                        filtered_child.add_routine(right["child"])
-                        break
-
-        return filtered_child
-
     def fit(self, time_series: pd.Series) -> None:
         """
         Fit the DRGS algorithm to the time series data.
@@ -1862,6 +1750,7 @@ class DRGS(DRFL):
         super()._check_type_time_series(time_series)
         self.time_series = time_series
 
+        st = time.time()
         # Initialization of the first hierarchy level routine
         init_routine = self.__execute_drfl(self.time_series, self.__length_range[0])
         actual_length = self.__length_range[0] + 1
@@ -1873,11 +1762,13 @@ class DRGS(DRFL):
             return
 
         self.__hierarchical_routines.add_routine(init_routine)
+        print(f"Fitted routine for length: {self.__length_range[0]}, routines detected: {len(init_routine)}, time: {(time.time() - st):.2f}, seconds")
 
         # iterate over the range of lengths
         while actual_length <= self.__length_range[1] and not \
                 self.__hierarchical_routines[actual_length - 1].is_empty():
 
+            st = time.time()
             # Initialize the routines for the current length
             routines_l_k = Routines()
 
@@ -1908,9 +1799,6 @@ class DRGS(DRFL):
             # Remove subsets
             unique_routines = unique_routines.remove_subsets()
 
-            # # Union for the left and right routines from the actual hierarchy
-            # self.__hierarchical_routines.add_routine(unique_routines)
-
             # Fusion of similar clusters
             unique_routines = self.__similar_clusters_fusion(unique_routines)
 
@@ -1922,8 +1810,9 @@ class DRGS(DRFL):
             # Add the filtered routines to the hierarchical routines
             self.__hierarchical_routines.add_routine(filtered_routine)
 
-            actual_length += 1  # Increment the hierarchy
+            print(f"Fitted routine for length: {actual_length}, routines detected: {len(filtered_routine)}, time: {(time.time() - st):.2f}, seconds")
 
+            actual_length += 1  # Increment the hierarchy
         self.__already_fitted = True  # Set the already_fitted attribute to True
 
     def get_results(self) -> HierarchyRoutine:
@@ -1980,39 +1869,7 @@ class DRGS(DRFL):
         if not self.__already_fitted:
             raise RuntimeError("The model has not been fitted yet. Please call the fit method before using this method")
 
-        # Check if there are no routines discovered
-        if self.__hierarchical_routines.is_empty():
-            warnings.warn("No routines have been discovered", UserWarning)
-            return ClusterTree()
-
-        # Create a ClusterTree object
-        cluster_tree = ClusterTree()
-
-        # Assign the nodes to the cluster tree and iterate over all hierarchical routines
-        for length, routine in self.__hierarchical_routines.items:
-            for id_clust, cluster in enumerate(routine):
-                # Assign the node to the cluster tree
-                cluster_tree.assign_node(cluster)
-
-                # If the length is greater than the minimum length, add the edges to the cluster tree
-                if length > self.__length_range[0]:
-                    # Iterate over the parent clusters
-                    for id_parent, parent_cluster in enumerate(self.__hierarchical_routines[length - 1]):
-                        # Check if the current cluster is the left child from the parent cluster and add the edge
-
-                        try:
-                            if self.__is_left_child(parent_cluster, cluster):
-                                cluster_tree.add_edge(parent_cluster, cluster, is_left=True)
-
-                            # Check if the current cluster is the right child from the parent cluster and add the edge
-                            if self.__is_right_child(parent_cluster, cluster):
-                                cluster_tree.add_edge(parent_cluster, cluster, is_left=False)
-
-                        except Exception as e:
-                            print(
-                                f"error on parent: {length - 1}-{id_parent + 1}; and child: {length}-{id_clust + 1}, {e}")
-
-        cluster_tree.assign_names()
+        cluster_tree = self.__hierarchical_routines.convert_to_cluster_tree()
 
         return cluster_tree
 
@@ -2248,7 +2105,8 @@ class DRGS(DRFL):
                 raise TypeError(f"top_hierarchy must be an integer. Got {type(top_hierarchy).__name__} instead.")
 
             if all_hierarchies[0] > top_hierarchy:
-                raise ValueError(f"top_hierarchy must be greater than lower existent hierarchy {all_hierarchies[0]}. Got {top_hierarchy} instead.")
+                raise ValueError(
+                    f"top_hierarchy must be greater than lower existent hierarchy {all_hierarchies[0]}. Got {top_hierarchy} instead.")
 
         # set the top hierarchy to the maximum hierarchy if not provided
         top_hierarchy = top_hierarchy or all_hierarchies[-1]
@@ -2265,7 +2123,8 @@ class DRGS(DRFL):
         # Plot each routine in the hierarchical routines
         for i, (length, routine) in enumerate(self.__hierarchical_routines.items):
             # Create the figure, grid layout and base colors for the plot
-            fig = plt.figure(figsize=figsize) if len(routine) > 1 else plt.figure(figsize=(figsize[0], int(figsize[1] // 2)))
+            fig = plt.figure(figsize=figsize) if len(routine) > 1 else plt.figure(
+                figsize=(figsize[0], int(figsize[1] // 2)))
             gs = gridspec.GridSpec(len(routine), 1, figure=fig)
 
             for j, cluster in enumerate(routine):
@@ -2336,7 +2195,5 @@ class DRGS(DRFL):
 
             plt.show()
 
-
             if length >= top_hierarchy:
                 break
-

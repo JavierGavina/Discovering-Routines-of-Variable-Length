@@ -10,6 +10,7 @@ from multiprocessing import cpu_count
 from itertools import product
 
 from src.DRFL import DRFL, ParallelSearchDRFL, DRGS
+from src.structures import HierarchyRoutine
 
 import argparse
 
@@ -21,147 +22,106 @@ argparser.add_argument("--param_m", type=int, default=4, help="length of the sub
 argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
 argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
 argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
-argparser.add_argument("--_epsilon", type=float, default=0.5, help="minimum overlap percentage")
+argparser.add_argument("--epsilon", type=float, default=0.5, help="minimum overlap percentage")
+argparser.add_argument("--L", type=int, default=0, help="minimum number of subsequences in a routine")
+argparser.add_argument("--fusion_distance", type=float, default=0.001,
+                       help="minimum distance between clusters centroids to be fused")
 
 
 def process_sequence(sequence: list):
-    return np.array([np.nan if x == "" else int(x) for x in sequence])
+    return np.where(np.array(sequence) == '', np.nan, np.array(sequence, dtype=int))
 
 
-# Load the data
 def load_data(data_dir: str):
-    data = pd.DataFrame(columns=["Year", "Month", "Day", "Sequence"])
-    with open(data_dir, "r") as file:
-        # skip the header
-        file.readline()
-        for idx, line in enumerate(file.readlines()):  # Read each line
-            text = line.rstrip("\n").split(",")
-            sequence_processed = process_sequence(text[3:])
-            data.loc[idx] = [int(text[0]), int(text[1]), int(text[2]), sequence_processed]
-
+    data = pd.read_csv(data_dir, skiprows=1, header=None)
+    data.columns = ["Year", "Month", "Day"] + [f"Min_{i}" for i in range(data.shape[1] - 3)]
+    data.set_index(["Year", "Month", "Day"], inplace=True)
+    for col in data.columns:
+        data[col] = process_sequence(data[col].tolist())
     return data
 
 
 def obtain_correspondencies(json_dictionary_file: str):
     with open(json_dictionary_file, "r") as file:
         correspondences = json.load(file)
-        # invert correspondences
-        correspondences = {v: k for k, v in correspondences.items()}
-    return correspondences
-
-
-def feature_extraction(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
-    feat_extraction = data.copy()
-    # Create a new column with the room name
-    rooms_keys = correspondences.keys()
-    for key in rooms_keys:
-        if correspondences[key] != "room" and correspondences[key] != "dining-room":
-            feat_extraction[f"N_{key}"] = (feat_extraction["Sequence"]
-                                           .apply(lambda x: sum(x == key)))
-    feat_extraction = feat_extraction.drop(columns="Sequence")
-    return feat_extraction
+    return {int(v): k for k, v in correspondences.items()}
 
 
 def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
-    feat_extraction = pd.DataFrame(
-        columns=["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()])
-    for idx, row in tqdm(data.iterrows()):
-        sequence = row["Sequence"]
-        for minute in tqdm(range(len(sequence))):
-            new_row = {"Year": row["Year"], "Month": row["Month"], "Day": row["Day"], "Hour": minute // 60,
-                       "Minute": minute}
-            for key in correspondences.keys():
-                new_row[f"N_{correspondences[key]}"] = int(sequence[minute] == key)
-            feat_extraction.loc[len(feat_extraction)] = new_row
+    # List of all potential column names based on correspondences
+    hour_cols = ["Year", "Month", "Day", "Hour"] + [f"N_{value}" for value in set(correspondences.values())]
 
-        os.system('cls' if os.name == 'nt' else 'clear')
-        if idx % 10 == 0:
-            print(f"Processed {idx} rows")
+    results = []
+    for (year, month, day), df in data.groupby(level=[0, 1, 2]):
+        df = df.melt(var_name='Minute', value_name='Room')
+        df['Hour'] = df['Minute'].str.extract('(\d+)').astype(int) // 60
+        df['Room'] = df['Room'].map(correspondences)
 
-        if idx == 62:
-            break
+        # Count occurrences by hour
+        hourly_data = df.pivot_table(index=["Hour"], columns="Room", aggfunc='size', fill_value=0)
+        hourly_data = hourly_data.rename(columns=lambda x: f"N_{x}")
+        hourly_data.reset_index(inplace=True)
+        hourly_data['Year'] = year
+        hourly_data['Month'] = month
+        hourly_data['Day'] = day
 
-    feat_extraction = feat_extraction[
-        ["Year", "Month", "Day", "Hour", "Minute"] + [f"N_{value}" for value in correspondences.values()]]
-    feat_extraction = feat_extraction.drop(["Minute"], axis=1).groupby(
-        ["Year", "Month", "Day", "Hour"]).sum().reset_index()
-    feat_extraction["Date"] = pd.to_timedelta(feat_extraction["Hour"], unit="h") + pd.to_datetime(
-        feat_extraction[["Year", "Month", "Day"]])
+        # Ensure all columns are present
+        for col in hour_cols:
+            if col not in hourly_data:
+                hourly_data[col] = 0
 
+        results.append(hourly_data[hour_cols])
+
+    return pd.concat(results).reset_index(drop=True)
+
+
+def get_time_series(path_to_feat_extraction: str, room: str) -> pd.Series:
+    feat_extraction = pd.read_csv(path_to_feat_extraction)
+    feat_extraction["Date"] = pd.to_datetime(feat_extraction[["Year", "Month", "Day", "Hour"]])
     feat_extraction.set_index("Date", inplace=True)
-    feat_extraction = feat_extraction.drop(columns=["Year", "Month", "Day", "Hour"])
-
-    return feat_extraction
-
-
-# def plot_feat_extraction_days(feat_extract: pd.DataFrame):
-#     columnas = feat_extract.columns[3:].tolist()
-#     aux = feat_extract.copy()
-#     aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
-#     for col in columnas:
-#         key = int(col.replace("N_", ""))
-#         plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
-#     plt.legend()
-#     plt.show()
-#
-#
-# def plot_gym_hours(feat_extract: pd.DataFrame):
-#     columnas = feat_extract.columns[3:].tolist()
-#     aux = feat_extract.copy()
-#     aux["date"] = pd.to_datetime(aux[["Year", "Month", "Day"]])
-#     for col in columnas:
-#         key = int(col.replace("N_", ""))
-#         if correspondencies[key] == "gym":
-#             plt.bar(aux["date"], feat_extract[col], label=correspondencies[key])
-#
-#     plt.xlim((pd.to_datetime("2024-02-01"), pd.to_datetime("2024-10-31")))
-#     plt.legend()
-#     plt.xticks(rotation=30)
-#     plt.show()
+    room_time_series = feat_extraction[f"N_{room}"]
+    return room_time_series
 
 
 if __name__ == "__main__":
-    # json_dictionary_file = "data/dictionary_rooms.json"
-    # data_dir = "data/activities-simulation-easy.csv"
-    # correspondencies = obtain_correspondencies(json_dictionary_file)
-    # df = load_data(data_dir)
-    # feat_extraction = group_by_hour(df, correspondencies)
-    # pd.set_option('display.max_columns', None, 'display.max_rows', None)
-    # feat_extraction.to_csv("data/out_feat_extraction.csv", index=True)
-
     # time_series = pd.Series([60, 60, 60, 60, 60, 60, 2, 2, 60, 60, 60, 60, 60, 60, 2, 2, 60, 60, 60, 60, 60, 60])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
     # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
-    feat_extraction = pd.read_csv("data/out_feat_extraction.csv")
-    feat_extraction.index = pd.date_range(start="2024-01-01", periods=len(feat_extraction))
-    room_time_series = feat_extraction["N_room"]
+    # json_dictionary_file = "data/dictionary_rooms.json"
+    # data_dir = "data/activities-simulation-easy.csv"
+    # correspondencies = obtain_correspondencies(json_dictionary_file)
+    # df = load_data(data_dir)
+    # feat_extraction = group_by_hour(df, correspondencies)
+    # pd.set_option('display.max_columns', None, 'display.max_rows', None)
+    # feat_extraction.to_csv("data/out_feat_extraction.csv", index=False)
 
-    drgs = DRGS(length_range=(3, 100), R=5, C=50, G=35, epsilon=1, L=2, fusion_distance=0.001)
-    drgs.fit(room_time_series)
-    os.makedirs("results", exist_ok=True)
-    drgs.plot_separate_hierarchical_results(title_fontsize=35, labels_fontsize=30, yticks_fontsize=20,
-                                            linewidth_bars=3, vline_width=3, xlim=(0, 300), figsize=(50, 25),
-                                            show_xticks=False, save_dir="results")
-    # drgs.show_results()
-    tree = drgs.convert_to_cluster_tree()
-    tree.plot_tree(title="Final node evolution", save_dir="results/final_tree.png", figsize=(14, 14))
-    routines = drgs.get_results()
+    # json_dictionary_file = "data/dictionary_rooms.json"
+    # data_dir = "data/activities-simulation-easy.csv"
+    # correspondencies = obtain_correspondencies(json_dictionary_file)
+    # df = load_data(data_dir)
+    # feat_extraction = group_by_hour(df, correspondencies)
+    # pd.set_option('display.max_columns', None, 'display.max_rows', None)
+    # feat_extraction.to_csv("data/out_feat_extraction.csv", index=False)
 
-    # for to_drop in ['5-4', "7-6", "16-5", "9-8", "18-8", "11-10", "13-12", "15-16", "17-18", "19-19", "21-19", "23-19]:
-    #     # DROPS ONLY ONE TIME THE 5-4 NODE, ALL THE ERRORS NODES DEPENDS DIRECTLY FROM 5-4
-    #     if to_drop in tree.name_nodes:
-    #         tree.drop_node(to_drop)
-
-    # dropped = []
-    # for name_node in tree.name_nodes:
-    #     if name_node in tree.name_nodes:
-    #         if name_node.split("-")[0] != "3" and not tree.has_parents(name_node) and not tree.has_children(name_node):
-    #             tree.drop_node(name_node)
-    #             dropped.append(name_node)
+    # room_time_series = get_time_series("data/out_feat_extraction.csv", "room")
     #
+    # drgs = DRGS(length_range=(3, 100), R=5, C=300, G=35, epsilon=1, L=2, fusion_distance=0.001)
+    # drgs.fit(room_time_series)
+    # os.makedirs("results", exist_ok=True)
+    # drgs.plot_separate_hierarchical_results(title_fontsize=35, labels_fontsize=30, yticks_fontsize=20,
+    #                                         linewidth_bars=3, vline_width=3, xlim=(0, 300), figsize=(50, 25),
+    #                                         show_xticks=False, save_dir="results")
+    # routines = drgs.get_results()
+    # routines.to_json("results/detected_routines.json")
+    routines = HierarchyRoutine()
+    routines.from_json("results/detected_routines.json")
+    tree = routines.convert_to_cluster_tree()
+    tree.plot_tree(title="Final node evolution", save_dir="results/final_tree.png", figsize=(14, 14))
+
+
     # tree.plot_tree(figsize=(45, 25), title="Dropping extra nodes")
     # print(dropped)
     # for node_drop in dropped:

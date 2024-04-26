@@ -749,35 +749,6 @@ class TestRoutines(unittest.TestCase):
         self.routines = self.routines.drop_indexes([0])
         self.assertEqual(len(self.routines), 1)
 
-    def test_get_routines(self):
-        """
-        Test the get_routines method of the Routines class
-
-        The method should return a list of clusters
-
-        The routines are:
-
-        Routines(
-            list_routines=[
-                Cluster(
-                    - centroid = [3, 4, 5, 6],
-                    - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
-                    - starting_points = [0, 4]
-                    - dates = [2021-1-1, 2021-1-2]
-                )])
-
-        The expected output is:
-
-        [Cluster(
-            - centroid = [3, 4, 5, 6],
-            - instances = [[1, 2, 3, 4], [5, 6, 7, 8]]
-            - starting_points = [0, 4]
-            - dates = [2021-1-1, 2021-1-2]
-        )]
-        """
-
-        self.assertEqual(self.routines.get_routines(), [self.cluster])
-
     def test_to_collection(self):
         """
         Test the to_collection method of the Routines class
@@ -1272,14 +1243,11 @@ class TestHierarchyRoutine(unittest.TestCase):
 
         self.hierarchy_routine.add_routine(self.routines1)
 
-        expected_output = {3: [{'centroid': np.array([2, 3, 4]),
-                                'instances': [{'instance': np.array([1, 2, 3]), 'date': datetime.date(2021, 1, 1),
-                                               'starting_point': 0},
-                                              {'instance': np.array([4, 5, 6]), 'date': datetime.date(2021, 1, 2),
-                                               'starting_point': 3}]},
-                               {'centroid': np.array([5, 6, 7]),
-                                'instances': [{'instance': np.array([7, 8, 9]), 'date': datetime.date(2021, 1, 3),
-                                               'starting_point': 6}]}]
+        expected_output = {3: [{'centroid': [2, 3, 4],
+                                'instances': [{'instance': [1, 2, 3], 'date': "2021/01/01, 00:00:00", 'starting_point': 0},
+                                              {'instance': [4, 5, 6], 'date': "2021/01/02, 00:00:00", 'starting_point': 3}]},
+                               {'centroid': [5, 6, 7],
+                                'instances': [{'instance': [7, 8, 9], 'date': "2021/01/03, 00:00:00", 'starting_point': 6}]}]
                            }
 
         # Check if the dictionary is correct
@@ -1335,7 +1303,7 @@ class TestClusterTree(unittest.TestCase):
 
     def test_add_edge(self):
         # Test that edges are correctly added between nodes.
-        self.assertTrue(self.tree.is_left_child(self.parent, self.right))
+        self.assertTrue(self.tree.is_existent_left_child(self.parent, self.right))
         self.assertIn((1, 2, {'left': True}), self.tree.graph.edges.data())
 
     def test_parent_child_relations(self):
