@@ -119,7 +119,7 @@ if __name__ == "__main__":
     routines = HierarchyRoutine()
     routines.from_json("results/detected_routines.json")
     tree = routines.convert_to_cluster_tree()
-    tree.plot_tree(title="Final node evolution", save_dir="results/final_tree.png", figsize=(14, 14))
+    tree.plot_tree(title="Final node evolution")
 
 
     # tree.plot_tree(figsize=(45, 25), title="Dropping extra nodes")

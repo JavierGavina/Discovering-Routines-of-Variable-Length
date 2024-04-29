@@ -114,6 +114,8 @@ Represents a cluster of subsequences
         * ``get_starting_points() -> list[int]``: returns the starting points of the subsequences
         * ``get_dates() -> list[dates]``: returns the dates of the subsequences
         * ``cumulative_magnitude() -> float``: returns the cumulative magnitude of the cluster
+        * ``fusion(other: Cluster) -> Cluster``: fusions the cluster with another cluster
+        * ``is_similar(other: Cluster, distance_threshold: int | float) -> bool``: returns True if the cluster is similar to another cluster, False otherwise
 
     **Examples**:
 
@@ -179,7 +181,9 @@ Represents a collection of clusters
         * ``get_routines() -> list[Cluster]``: returns the clusters from the `Routines`
         * ``get_centroids() -> list[np.ndarray]``: returns the centroids of the clusters
         * ``to_collection() -> list[dict]``: returns the routines as a list of dictionaries
-        * ``is_empty() -> bool``: returns True if the collection is empty, False otherwise
+        * ``is_empty() -> bool``: returns True if the routines are empty, False otherwise
+        * ``drop_duplicates()``: drops the duplicates from the routines
+        * ``remove_subsets()``: removes the subsets of those clusters from the routines that are subsets of another cluster
 
     **Examples**:
 
@@ -259,8 +263,13 @@ For each hierarchy, exists one routine with the correspondent length of the subs
         * ``routine: Optional[Routines]``, the routine to add to the hierarchy. Default is None
 
     **Public Methods**:
+        * ``is_empty() -> bool``: returns True if the hierarchy is empty, False otherwise
         * ``add_routine(new_routine: Routines)``: adds a routine to the hierarchy
         * ``to_dictionary() -> dict``: returns the hierarchy as a dictionary
+        * ``to_json(path: str)``: saves the hierarchy as a json file
+        * ``from_json(path: str)``: loads the hierarchy from a json file
+        * ``convert_to_cluster_tree() -> ClusterTree``: converts the hierarchy to a ClusterTree
+
 
     **Properties**:
         *Getters:*
@@ -342,9 +351,16 @@ and the edges are the hierarchy relationships between the clusters.
 Each node can have two children, the left and the right child.
 Each child has to have hierarchy greater than the parent.
 With this method, we can represent the hierarchy of the clusters in a tree structure
-and see how are the clusters grown, if from the left or from the right.
+and see how the clusters are grown, if from the left or from the right.
 
     **Public Methods**:
+        * ``is_left_child(parent: Cluster, child: Cluster) -> bool``: checks if the child cluster corresponds to the left child of the parent cluster
+        * ``is_right_child(parent: Cluster, child: Cluster) -> bool``: checks if the child cluster corresponds to the right child of the parent cluster
+        * ``get_name_node(node: Union[Cluster, int]) -> str``: returns the name of the node from the cluster or the index
+        * ``get_node(node: Union[str, int]) -> Cluster``: returns the cluster of the node from the index or the name
+        * ``get_index(node: Union[Cluster, str]) -> int``: returns the index of the node from the cluster or the name
+        * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
+        * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
         * ``assign_node(cluster: Cluster)``: assigns a node to the tree
         * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
         * ``drop_node(node: Union[Cluster, int])``: drops all the nodes that depends directly on the node specified (including the node)
@@ -353,11 +369,7 @@ and see how are the clusters grown, if from the left or from the right.
         * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
         * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
         * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
-        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
-        * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
-        * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
-        * ``get_cluster_from_index(index: int) -> Cluster``: returns the cluster from the index
-        * ``get_index_from_cluster(cluster: Cluster) -> int``: returns the index from the cluster
+        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent in the graph, `False` otherwise
         * ``plot_tree(node_size: int = 1000, with_labels: bool = True, figsize: tuple[int, int] = (7, 7), title: Optional[str] = None, title_fontsize: int = 15, save_dir: Optional[str] = None)``: plots the tree
 
     **Properties**:
@@ -2763,25 +2775,6 @@ class Routines:
 
         return new_routines
 
-    # def get_routines(self) -> list[Cluster]:
-    #     """
-    #     Returns the clusters of the `Routines`
-    #
-    #     Returns
-    #         `list[Cluster]`. Returns all the clusters of the routines as a list of clusters
-    #
-    #     Examples:
-    #         >>> routines = Routines()
-    #         >>> cluster1 = Cluster(np.array([3, 4, 5, 6]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-    #         >>> cluster2 = Cluster(np.array([7, 8, 9, 10]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-    #         >>> routines.add_routine(cluster1)
-    #         >>> routines.add_routine(cluster2)
-    #         >>> routines.get_routines()
-    #         [Cluster(centroid=np.array([3, 4, 5, 6]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([1, 2, 3, 4]), date=datetime.date(2021, 1, 1), starting_point=0)]), Cluster(centroid=np.array([7, 8, 9, 10]), instances=Sequence(list_sequences=[Subsequence(instance=np.array([5, 6, 7, 8]), date=datetime.date(2021, 1, 2), starting_point=4)])]
-    #     """
-    #
-    #     return self.__routines
-
     def get_centroids(self) -> list[np.ndarray]:
         """
         Returns the centroids of the clusters
@@ -3784,6 +3777,80 @@ class ClusterTree:
         return list(set(hierarchies))
 
     @staticmethod
+    def is_left_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the left child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the left child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_left = drgs.is_left_child(parent, child)
+            >>> print(is_left)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
+
+        # If its left child and is not a right child
+        if all([x + 1 in parent_sp for x in child_sp]) and not all([x in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x + 1 in parent_sp for x in child_sp]) and all([x in parent_sp for x in child_sp]):
+            return parent_sp[0] == child_sp[0]
+
+        return False
+
+    @staticmethod
+    def is_right_child(parent: Cluster, child: Cluster) -> bool:
+        """
+        Check if a cluster is the right child of another cluster.
+
+        Parameters:
+            * parent: `Cluster`. The parent cluster.
+            * child: `Cluster`. The child cluster.
+
+        Returns:
+            `bool`. True if the child cluster is the right child of the parent cluster, False otherwise.
+
+        Raises:
+            TypeError: If the parent or child clusters are not Cluster objects.
+
+        Examples:
+            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
+            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
+            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
+            >>> is_right = drgs.is_right_child(parent, child)
+            >>> print(is_right)
+            False
+        """
+
+        # Get the starting points of the parent and child clusters
+        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
+
+        # If its right child and is not a left child
+        if all([x in parent_sp for x in child_sp]) and not all([x + 1 in parent_sp for x in child_sp]):
+            return True
+
+        # If its both left and right childs
+        if all([x in parent_sp for x in child_sp]) and all([x + 1 in parent_sp for x in child_sp]):
+            return parent_sp[0] != child_sp[0]
+
+        return False
+
+    @staticmethod
     def __check_plot_params(**kwargs):
         """
         Checks the plot parameters
@@ -3873,80 +3940,6 @@ class ClusterTree:
         child_starting_points = child_sequences.get_starting_points()
 
         return parent_starting_points, child_starting_points
-
-    @staticmethod
-    def is_left_child(parent: Cluster, child: Cluster) -> bool:
-        """
-        Check if a cluster is the left child of another cluster.
-
-        Parameters:
-            * parent: `Cluster`. The parent cluster.
-            * child: `Cluster`. The child cluster.
-
-        Returns:
-            `bool`. True if the child cluster is the left child of the parent cluster, False otherwise.
-
-        Raises:
-            TypeError: If the parent or child clusters are not Cluster objects.
-
-        Examples:
-            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
-            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
-            >>> is_left = drgs.is_left_child(parent, child)
-            >>> print(is_left)
-            False
-        """
-
-        # Get the starting points of the parent and child clusters
-        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
-
-        # If its left child and is not a right child
-        if all([x + 1 in parent_sp for x in child_sp]) and not all([x in parent_sp for x in child_sp]):
-            return True
-
-        # If its both left and right childs
-        if all([x + 1 in parent_sp for x in child_sp]) and all([x in parent_sp for x in child_sp]):
-            return parent_sp[0] == child_sp[0]
-
-        return False
-
-    @staticmethod
-    def is_right_child(parent: Cluster, child: Cluster) -> bool:
-        """
-        Check if a cluster is the right child of another cluster.
-
-        Parameters:
-            * parent: `Cluster`. The parent cluster.
-            * child: `Cluster`. The child cluster.
-
-        Returns:
-            `bool`. True if the child cluster is the right child of the parent cluster, False otherwise.
-
-        Raises:
-            TypeError: If the parent or child clusters are not Cluster objects.
-
-        Examples:
-            >>> parent = Cluster(centroid=np.array([1, 2, 3]), instances=Sequence(Subsequence(np.array([1, 2, 3]), date=datetime.date(2024, 1, 1), starting_point=0)))
-            >>> child = Cluster(centroid=np.array([3, 2, 1]), instances=Sequence(Subsequence(np.array([3, 2, 1]), date=datetime.date(2024, 1, 1), starting_point=0))
-            >>> drgs = DRGS(length_range=(3, 8), R=2, C=3, G=4, epsilon=0.5)
-            >>> is_right = drgs.is_right_child(parent, child)
-            >>> print(is_right)
-            False
-        """
-
-        # Get the starting points of the parent and child clusters
-        parent_sp, child_sp = ClusterTree().__get_parent_child_starting_points(parent, child)
-
-        # If its right child and is not a left child
-        if all([x in parent_sp for x in child_sp]) and not all([x + 1 in parent_sp for x in child_sp]):
-            return True
-
-        # If its both left and right childs
-        if all([x in parent_sp for x in child_sp]) and all([x + 1 in parent_sp for x in child_sp]):
-            return parent_sp[0] != child_sp[0]
-
-        return False
 
     def __check_and_convert_node(self, node: Union[Cluster, int, str]) -> int:
         """
@@ -4104,8 +4097,8 @@ class ClusterTree:
         parent_hierarchy = parent.length_cluster_subsequences
         child_hierarchy = child.length_cluster_subsequences
 
-        index_parent = self.get_index_from_cluster(parent)
-        index_child = self.get_index_from_cluster(child)
+        index_parent = self.get_index(parent)
+        index_child = self.get_index(child)
 
         # Check if the parent is in the list of clusters
         if parent not in self.__nodes:
@@ -4182,7 +4175,7 @@ class ClusterTree:
         # If the parent is a Cluster instance, we get the index
         if isinstance(parent, Cluster):
             self.__check_clusters_from_edges(parent, child)
-            return self.get_index_from_cluster(parent), self.get_index_from_cluster(child)
+            return self.get_index(parent), self.get_index(child)
 
         else:
             # Check if the parent is in the list of clusters
@@ -4194,8 +4187,8 @@ class ClusterTree:
                 raise IndexError(f"Index {child} not found in the list of indexes {self.__list_of_index}")
 
             # Get the parent and child clusters indexes
-            parent_clust = self.get_cluster_from_index(parent)
-            child_clust = self.get_cluster_from_index(child)
+            parent_clust = self.get_node(parent)
+            child_clust = self.get_node(child)
 
             # Check if the parent and child clusters are correct
             self.__check_clusters_from_edges(parent_clust, child_clust)
@@ -4239,33 +4232,37 @@ class ClusterTree:
 
         existent_children = self.children(parent)
 
+        # If there are name nodes, we get the name of the parent and children nodes
         if len(self.name_nodes) > 0:
             parent = self.get_name_node(parent)
             existent_children = [self.get_name_node(child) for child in existent_children]
 
+        # Check if the parent already has two children: left and right child
         if len(existent_children) == 2:
             raise ValueError(
                 f"Parent {parent} already has two children: left: {existent_children[0]}; right: {existent_children[1]}")
 
+        # Check if the left child already exists for the parent
         if is_left and any(self.__graph.edges[parent, child]['left'] for child in existent_children):
             raise ValueError(f"Left child already exists for parent {parent}")
 
+        # Check if the right child already exists for the parent
         if not is_left and any(not self.__graph.edges[parent, child]['left'] for child in existent_children):
             raise ValueError(f"Right child already exists for parent {parent}")
 
-    def get_name_node(self, node: Union[Cluster, int]) -> str:
+    def get_name_node(self, node: Union[Cluster, int, str]) -> str:
         """
         Returns the name of the node
 
         Parameters:
-            * node: `Cluster`. The node to get the name
+            * node: Union[`Cluster`, `int`, `str`]. The node to get the name
 
         Returns:
             * `str`. The name of the node
 
         Raises:
-            TypeError: if the node is not an instance of Cluster
-            ValueError: if the node is not in the list of nodes
+            TypeError: if the node is not an instance of Cluster, integer or string
+            ValueError: if the node doesn't exist
 
         Examples:
             >>> tree = ClusterTree()
@@ -4288,7 +4285,7 @@ class ClusterTree:
         """
 
         # Check if the node is an instance of Cluster
-        if not isinstance(node, (Cluster, int)):
+        if not isinstance(node, (Cluster, int, str)):
             raise TypeError(f"node has to be an instance of Cluster. Got {type(node).__name__} instead")
 
         # Check if the node is in the list of nodes
@@ -4299,16 +4296,26 @@ class ClusterTree:
             idx = self.__nodes.index(node)
             return self.__name_node[idx]
 
-        if node not in self.__list_of_index:
+        # If the node is an integer, we get the name of the node
+        if isinstance(node, int):
+            if node not in self.__list_of_index:
+                raise ValueError(f"Node {node} not found in the list of nodes")
+
+            idx = self.__list_of_index.index(node)
+            return self.__name_node[idx]
+
+        # If the node is a string, we check if it exists in the list of names
+        if node not in self.__name_node:
             raise ValueError(f"Node {node} not found in the list of nodes")
 
-        idx = self.__list_of_index.index(node)
-        return self.__name_node[idx]
+        return node
 
-    def get_node(self, node: Union[int, str]) -> Cluster:
+    def get_node(self, node: Union[int, str, Cluster]) -> Cluster:
+        # Check if the node is an instance of Cluster, string or integer
         if not isinstance(node, (int, str, Cluster)):
             raise TypeError(f"node has to be an integer, string or Cluster. Got {type(node).__name__} instead")
 
+        # If the node is a string, we get the index from the name nodes
         if isinstance(node, str):
             if node not in self.__name_node:
                 raise ValueError(f"Node {node} not found in the list of nodes {self.__name_node}")
@@ -4316,6 +4323,7 @@ class ClusterTree:
             idx = self.__name_node.index(node)
             return self.__nodes[idx]
 
+        # If the node is an integer, we check if it exists in the list of indexes
         if isinstance(node, int):
             if node not in self.__list_of_index:
                 raise ValueError(f"Node {node} not found in the list of nodes {self.__list_of_index}")
@@ -4323,16 +4331,19 @@ class ClusterTree:
             idx = self.__list_of_index.index(node)
             return self.__nodes[idx]
 
+        # If the node is a Cluster, we check if it exists in the list of nodes
         if node not in self.__nodes:
             raise ValueError(f"Node {node} not found in the list of nodes")
 
-        idx = self.__nodes.index(node)
-        return self.__nodes[idx]
+        return node
 
-    def get_index(self, node: Union[Cluster, str]) -> int:
-        if not isinstance(node, (Cluster, str)):
-            raise TypeError(f"node has to be a Cluster instance or a string. Got {type(node).__name__} instead")
+    def get_index(self, node: Union[Cluster, str, int]) -> int:
 
+        # Check if the node is an instance of Cluster, string or integer
+        if not isinstance(node, (Cluster, str, int)):
+            raise TypeError(f"node has to be a Cluster, string or integer instance. Got {type(node).__name__} instead")
+
+        # If the node is a string, we get the index from the name nodes
         if isinstance(node, str):
             if node not in self.__name_node:
                 raise ValueError(f"Node {node} not found in the list of nodes {self.__name_node}")
@@ -4340,11 +4351,19 @@ class ClusterTree:
             idx = self.__name_node.index(node)
             return self.__list_of_index[idx]
 
-        if node not in self.__nodes:
-            raise ValueError(f"Node {node} not found in the list of nodes")
+        # If the node is a Cluster, we get the index from the list of nodes
+        if isinstance(node, Cluster):
+            if node not in self.__nodes:
+                raise ValueError(f"Node {node} not found in the list of nodes")
 
-        idx = self.__nodes.index(node)
-        return self.__list_of_index[idx]
+            idx = self.__nodes.index(node)
+            return self.__list_of_index[idx]
+
+        # If the node is an integer, we check if it exists in the list of indexes
+        if node not in self.__list_of_index:
+            raise ValueError(f"Node {node} not found in the list of nodes {self.__list_of_index}")
+
+        return node
 
     def get_nodes_with_hierarchy(self, hierarchy: int) -> list[Cluster]:
         """
@@ -4401,78 +4420,6 @@ class ClusterTree:
         """
 
         return dict(zip(self.__list_of_index, self.__nodes))
-
-    def get_cluster_from_index(self, idx: int) -> Cluster:
-        """
-        Returns the cluster from the index
-
-        Parameters:
-            * idx: `int`. The index of the cluster
-
-        Returns:
-            `Cluster`. The cluster from the index
-
-        Raises:
-            TypeError: if the idx is not an integer
-            IndexError: if the index is not in the list of indexes
-
-        Examples:
-            >>> tree = ClusterTree()
-            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-
-            >>> tree.assign_node(cluster1)
-            >>> tree.assign_node(cluster2)
-
-            >>> tree.get_cluster_from_index(0)
-            Cluster(
-                - centroid = [1, 1, 1, 1],
-                - instances = [[1, 2, 3, 4]]
-                - starting_points = [0]
-                - dates = [datetime.date(2021, 1, 1)]
-            )
-        """
-
-        # Check if the idx is an integer
-        if not isinstance(idx, int):
-            raise TypeError(f"idx has to be an integer. Got {type(idx).__name__} instead")
-
-        # Check if the index is in the list of indexes
-        if idx not in self.__list_of_index:
-            raise IndexError(f"Index {idx} not found in the list of indexes {self.__list_of_index}")
-
-        # Get the cluster from the index
-        return self.__graph.nodes.data()[idx]['cluster']
-
-    def get_index_from_cluster(self, node: Cluster) -> int:
-        """
-        Returns the index from the cluster
-
-        Parameters:
-            * node: `Cluster`. The cluster to get the index
-
-        Returns:
-            `int`. The index of the cluster
-
-        Raises:
-            TypeError: if the node is not an instance of Cluster
-            IndexError: if the cluster is not in the list of clusters
-
-        Examples:
-            >>> tree = ClusterTree()
-            >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-            >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
-
-            >>> tree.assign_node(cluster1)
-            >>> tree.assign_node(cluster2)
-
-            >>> tree.get_index_from_cluster(cluster1)
-            0
-        """
-
-        # Check if the node is an instance of Cluster and if the cluster is in the list of clusters
-        node_index = self.__check_and_convert_node(node)
-        return node_index
 
     def children(self, node: Union[Cluster, int, str]) -> list[int]:
         """
@@ -4958,6 +4905,7 @@ class ClusterTree:
             >>> hierarchy_routine = tree.convert_to_hierarchical_routines()
             >>> hierarchy_routine
         """
+
         hierarchy_routine = HierarchyRoutine()
         available_hierarchies = self.hierarchies
         for hierarchy in available_hierarchies:
