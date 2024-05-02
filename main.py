@@ -280,6 +280,7 @@ if __name__ == "__main__":
 
         drgs_hours = DRGS(length_range=(3, 100), R=R1, C=C1, G=G1, epsilon=epsilon1, L=L1,
                           fusion_distance=fusion_distance1)
+
         drgs_quarters = DRGS(length_range=(3, 100), R=R2, C=C2, G=G2, epsilon=epsilon2, L=L2,
                              fusion_distance=fusion_distance2)
 
@@ -293,21 +294,44 @@ if __name__ == "__main__":
             warnings.warn(f"Empty results for room {room}")
 
         else:
-            tree_hours.plot_tree(title="Final node evolution", save_dir=f"{path_out_hour}/final_tree_hours.png",
-                                 figsize=(14, 14))
+            if len(tree_hours.nodes) > 30:
+                tree_hours.plot_tree(title="Final node evolution",
+                                     save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                     figsize=(27, 27))
+
+            elif len(tree_hours.nodes) < 7:
+                tree_hours.plot_tree(title="Final node evolution",
+                                     save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                     figsize=(7, 7))
+
+            else:
+                tree_hours.plot_tree(title="Final node evolution",
+                                     save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                     figsize=(14, 14))
 
         drgs_quarters.fit(quarter_time_series)
         drgs_quarters.results_per_quarter_hour(top_days=15, figsize=(50, 60), save_dir=path_out_quarter,
                                                bars_linewidth=2, show_background_annotations=True)
 
         tree_quarters = drgs_quarters.convert_to_cluster_tree()
+
         if drgs_quarters.get_results().is_empty():
             warnings.warn(f"Empty results for room {room}")
 
         else:
-            tree_quarters.plot_tree(title="Final node evolution",
-                                    save_dir=f"{path_out_quarter}/final_tree_quarters.png",
-                                    figsize=(14, 14))
+            if len(tree_quarters.nodes) > 30:
+                tree_quarters.plot_tree(title="Final node evolution",
+                                        save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                        figsize=(27, 27))
+            elif len(tree_quarters.nodes) < 7:
+                tree_quarters.plot_tree(title="Final node evolution",
+                                        save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                        figsize=(7, 7))
+
+            else:
+                tree_quarters.plot_tree(title="Final node evolution",
+                                        save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                        figsize=(14, 14))
 
         print(f"Elapsed time for room {room}: {time.time() - st}")
 
