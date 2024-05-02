@@ -209,7 +209,7 @@ if __name__ == "__main__":
     # print(feat_extraction.head(300))
     # feat_extraction.to_csv("data/out_feat_extraction_quarters.csv", index=False)
 
-    # os.makedirs("groundtruth_figs", exist_ok=True)
+    # os.makedirs("groundtruth_data1_figs", exist_ok=True)
     # correspondencies = obtain_correspondencies("data/dictionary_rooms.json")
     # base_colors = cm.rainbow(np.linspace(0, 1, len(correspondencies)))
     # for room, room_name in correspondencies.items():
@@ -217,19 +217,19 @@ if __name__ == "__main__":
     #     plot_groundtruth(time_series=room_time_series, room=room_name,
     #                      top_days=15, figsize=(30, 50),
     #                      barcolors=base_colors[room - 1],
-    #                      save_dir=f"groundtruth_figs/{room_name}.png")
+    #                      save_dir=f"groundtruth_data1_figs/{room_name}.png")
 
     # plot_groundtruth(room_time_series, top_days=15, figsize=(30, 50))
 
-    ROOT_DATA = "data"
-    DICTIONARY_FILE = f"{ROOT_DATA}/dictionary_rooms.json"
+    ROOT_DATA = "data/data2"
+    DICTIONARY_FILE = f"{ROOT_DATA}/metadata_new_data/dictionary_rooms.json"
     DATA_FILE = f"{ROOT_DATA}/activities-simulation-easy.csv"
 
     HOUR_EXTRACTED = f"{ROOT_DATA}/out_feat_extraction.csv"
     QUARTER_EXTRACTED = f"{ROOT_DATA}/out_feat_extraction_quarters.csv"
 
     # Results figs
-    RESULTS_FIG = "results/figs"
+    RESULTS_FIG = "results/results-data2/"
     HOUR_RESULTS = f"{RESULTS_FIG}/plot_hours_routines"
     QUARTER_RESULTS = f"{RESULTS_FIG}/plot_quarters_routines"
 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     os.makedirs(QUARTER_RESULTS, exist_ok=True)
 
     # Groundtruth figs
-    GROUNDTRUTH_ROOT = "figs/groundtruth_figs"
+    GROUNDTRUTH_ROOT = "figs/groundtruth_data2_figs"
     HOURS_GROUNDTRUTH = f"{GROUNDTRUTH_ROOT}/hours"
     QUARTERS_GROUNDTRUTH = f"{GROUNDTRUTH_ROOT}/quarters"
 
@@ -268,8 +268,8 @@ if __name__ == "__main__":
         hour_time_series = get_time_series(HOUR_EXTRACTED, room).loc["2024-01-01 00:00:00":"2024-03-01 00:00:00"]
         quarter_time_series = get_time_series(QUARTER_EXTRACTED, room).loc["2024-01-01 00:00:00":"2024-03-01 00:00:00"]
 
-        # plot_hours_groundtruth(hour_time_series, room, top_days=15, figsize=(30, 60), save_dir=f"{HOURS_GROUNDTRUTH}/{room}.png")
-        # plot_quarters_groundtruth(quarter_time_series, room, top_days=15, figsize=(50, 60), save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.png")
+        plot_hours_groundtruth(hour_time_series, room, top_days=15, figsize=(30, 60), save_dir=f"{HOURS_GROUNDTRUTH}/{room}.png")
+        plot_quarters_groundtruth(quarter_time_series, room, top_days=15, figsize=(50, 60), save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.png")
 
         R1, C1, G1, epsilon1, L1, fusion_distance1 = 5, 5, 20, 1, 1, 0.0001
         R2, C2, G2, epsilon2, L2, fusion_distance2 = 3, 10, 5, 1, 1, 0.0001

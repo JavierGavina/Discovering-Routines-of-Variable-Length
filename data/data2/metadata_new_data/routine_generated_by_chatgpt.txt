@@ -1,0 +1,228 @@
+DICTIONARY ROOMS
+{
+  "Room": 1,
+  "Dinning Room": 2,
+  "Gym": 3,
+  "Therapy Room": 4,
+  "Living Room": 5,
+  "Terrace": 6,
+  "TV Room": 7
+}
+
+
+
+
+
+
+DAILY ACTIVITIES JSON
+
+[
+    {
+        "typeDate": 1,
+        "intervals": [
+            ["00:00", "09:00"],
+            ["09:00", "10:00"],
+            ["10:00", "12:15"],
+            ["12:15", "13:30"],
+            ["13:30", "14:45"],
+            ["14:45", "15:45"],
+            ["15:45", "16:00"],
+            ["16:00", "16:30"],
+            ["16:30", "17:30"],
+            ["17:30", "19:15"],
+            ["19:15", "20:30"],
+            ["20:30", "21:00"],
+            ["21:00", "23:59"]
+        ],
+        "rooms": [
+            "Room",
+            "Dinning Room",
+            "Room",
+            "Dinning Room",
+            "Living Room",
+            "Terrace",
+            "Gym",
+            "Dinning Room",
+            "Therapy Room",
+            "Room",
+            "Dinning Room",
+            "TV Room",
+            "Room"
+        ]
+    },
+    {
+        "typeDate": 2,
+        "intervals": [
+            ["00:00", "09:00"],
+            ["09:00", "10:00"],
+            ["10:00", "11:00"],
+            ["11:00", "12:15"],
+            ["12:15", "13:30"],
+            ["13:30", "15:00"],
+            ["15:00", "15:30"],
+            ["15:30", "16:00"],
+            ["16:00", "16:30"],
+            ["16:30", "18:15"],
+            ["18:15", "19:15"],
+            ["19:15", "20:30"],
+            ["20:30", "21:00"],
+            ["21:00", "23:59"]
+        ],
+        "rooms": [
+            "Room",
+            "Dinning Room",
+            "Gym",
+            "Therapy Room",
+            "Dinning Room",
+            "Living Room",
+            "Terrace",
+            "Room",
+            "Dinning Room",
+            "Gym",
+            "Therapy Room",
+            "Dinning Room",
+            "TV Room",
+            "Room"
+        ]
+    },
+    {
+        "typeDate": 3,
+        "intervals": [
+            ["00:00", "09:00"],
+            ["09:00", "10:00"],
+            ["10:00", "12:15"],
+            ["12:15", "13:30"],
+            ["13:30", "14:45"],
+            ["14:45", "15:45"],
+            ["15:45", "16:00"],
+            ["16:00", "16:30"],
+            ["16:30", "17:30"],
+            ["17:30", "19:15"],
+            ["19:15", "20:30"],
+            ["20:30", "23:59"]
+        ],
+        "rooms": [
+            "Room",
+            "Dinning Room",
+            "Room",
+            "Dinning Room",
+            "TV Room",
+            "Living Room",
+            "Terrace",
+            "Dinning Room",
+            "Gym",
+            "Therapy Room",
+            "Dinning Room",
+            "Room"
+        ]
+    },
+    {
+        "typeDate": 4,
+        "intervals": [
+            ["00:00", "09:00"],
+            ["09:00", "10:00"],
+            ["10:00", "11:45"],
+            ["11:45", "12:15"],
+            ["12:15", "13:30"],
+            ["13:30", "15:00"],
+            ["15:00", "15:30"],
+            ["15:30", "16:00"],
+            ["16:00", "16:30"],
+            ["16:30", "18:30"],
+            ["18:30", "19:15"],
+            ["19:15", "20:30"],
+            ["20:30", "23:59"]
+        ],
+        "rooms": [
+            "Room",
+            "Dinning Room",
+            "Gym",
+            "Therapy Room",
+            "Dinning Room",
+            "Room",
+            "TV Room",
+            "Living Room",
+            "Dinning Room",
+            "Room",
+            "Terrace",
+            "Dinning Room",
+            "Room"
+        ]
+    },
+    {
+        "typeDate": 5,
+        "intervals": [
+            ["00:00", "09:00"],
+            ["09:00", "10:00"],
+            ["10:00", "12:15"],
+            ["12:15", "13:30"],
+            ["13:30", "15:00"],
+            ["15:00", "16:00"],
+            ["16:00", "16:30"],
+            ["16:30", "19:15"],
+            ["19:15", "20:30"],
+            ["20:30", "21:00"],
+            ["21:00", "23:59"]
+        ],
+        "rooms": [
+            "Room",
+            "Dinning Room",
+            "Room",
+            "Dinning Room",
+            "Gym",
+            "Terrace",
+            "Dinning Room",
+            "Room",
+            "Dinning Room",
+            "Therapy",
+            "Room"
+        ]
+    }
+]
+
+
+
+
+
+
+
+
+ASSIGNED ACTIVITIES
+
+[
+    {"date": "2024-05-01", "typeDate": "3"},
+    {"date": "2024-05-02", "typeDate": "5"},
+    {"date": "2024-05-03", "typeDate": "1"},
+    {"date": "2024-05-04", "typeDate": "4"},
+    {"date": "2024-05-05", "typeDate": "2"},
+    {"date": "2024-05-06", "typeDate": "5"},
+    {"date": "2024-05-07", "typeDate": "3"},
+    {"date": "2024-05-08", "typeDate": "1"},
+    {"date": "2024-05-09", "typeDate": "2"},
+    {"date": "2024-05-10", "typeDate": "4"},
+    {"date": "2024-05-11", "typeDate": "2"},
+    {"date": "2024-05-12", "typeDate": "5"},
+    {"date": "2024-05-13", "typeDate": "3"},
+    {"date": "2024-05-14", "typeDate": "1"},
+    {"date": "2024-05-15", "typeDate": "4"},
+    {"date": "2024-05-16", "typeDate": "2"},
+    {"date": "2024-05-17", "typeDate": "3"},
+    {"date": "2024-05-18", "typeDate": "5"},
+    {"date": "2024-05-19", "typeDate": "1"},
+    {"date": "2024-05-20", "typeDate": "4"},
+    {"date": "2024-05-21", "typeDate": "1"},
+    {"date": "2024-05-22", "typeDate": "2"},
+    {"date": "2024-05-23", "typeDate": "4"},
+    {"date": "2024-05-24", "typeDate": "3"},
+    {"date": "2024-05-25", "typeDate": "5"},
+    {"date": "2024-05-26", "typeDate": "2"},
+    {"date": "2024-05-27", "typeDate": "4"},
+    {"date": "2024-05-28", "typeDate": "1"},
+    {"date": "2024-05-29", "typeDate": "3"},
+    {"date": "2024-05-30", "typeDate": "5"},
+    {"date": "2024-05-31", "typeDate": "3"}
+]
+
+
+
+
