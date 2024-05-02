@@ -361,15 +361,18 @@ and see how the clusters are grown, if from the left or from the right.
         * ``get_index(node: Union[Cluster, str]) -> int``: returns the index of the node from the cluster or the name
         * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
         * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
-        * ``assign_node(cluster: Cluster)``: assigns a node to the tree
-        * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
-        * ``drop_node(node: Union[Cluster, int])``: drops all the nodes that depends directly on the node specified (including the node)
-        * ``parents(node: Union[Cluster, int]) -> list[int]``: returns the parents of the node
         * ``children(node: Union[Cluster, int]) -> list[int]``: returns the children of the node
-        * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
-        * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
         * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
         * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent in the graph, `False` otherwise
+        * ``parents(node: Union[Cluster, int]) -> list[int]``: returns the parents of the node
+        * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
+        * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
+        * ``assign_names()``: assigns names to the existent nodes in the graph
+        * ``reset_names()``: resets the names of the nodes in the graph
+        * ``assign_node(cluster: Cluster)``: assigns a node to the tree
+        * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
+        * ``drop_node(node: Union[Cluster, int, str])``: drops all the nodes that depends directly on the node specified (including the node)
+        * ``convert_to_hierarchy_routine() -> HierarchyRoutine``: converts the tree to a HierarchyRoutine
         * ``plot_tree(node_size: int = 1000, with_labels: bool = True, figsize: tuple[int, int] = (7, 7), title: Optional[str] = None, title_fontsize: int = 15, save_dir: Optional[str] = None)``: plots the tree
 
     **Properties**:
@@ -378,6 +381,124 @@ and see how the clusters are grown, if from the left or from the right.
             * ``nodes: list[Cluster]``: returns the list of clusters
             * ``graph: nx.classes.digraph.DiGraph``: returns the graph
             * ``edges: nx.classes.reportviews.OutEdgeDataView``: returns the edges of the graph
+
+    **Examples**:
+        >>> tree = ClusterTree()
+        >>> parent = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 2), 1)))
+        >>> left = Cluster(np.array([0, 1, 2, 3]), Sequence(Subsequence(np.array([0, 1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+        >>> right = Cluster(np.array([1, 2, 3, 4]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 2), 1)))
+
+        >>> tree.assign_node(parent)
+        >>> tree.assign_node(left)
+        >>> tree.assign_node(right)
+
+        >>> tree.add_edge(1, 2, is_left=True)
+        >>> tree.add_edge(1, 3, is_left=False)
+
+        >>> tree.assign_names()
+
+        >>> tree.indexes
+        [1, 2, 3]
+
+        >>> tree.nodes
+        [Cluster(
+            - centroid = [1, 2, 3],
+            - instances = [[1, 2, 3]]
+            - starting_points = [1]
+            - dates = [datetime.date(2021, 1, 2)]
+        ), Cluster(
+            - centroid = [0, 1, 2, 3],
+            - instances = [[0, 1, 2, 3]]
+            - starting_points = [0]
+            - dates = [datetime.date(2021, 1, 1)]
+        ), Cluster(
+            - centroid = [1, 2, 3, 4],
+            - instances = [[1, 2, 3, 4]]
+            - starting_points = [1]
+            - dates = [datetime.date(2021, 1, 2)]
+        )]
+
+        >>> tree.name_nodes
+        ['3-1', '4-1', '4-2']
+
+        >>> tree.edges
+        OutEdgeDataView([(1, 2, {'left': True}), (1, 3, {'left': False})])
+
+        >>> tree.parents(2)
+        [1]
+
+        >>> tree.children(1)
+        [2, 3]
+
+        >>> tree.is_child(1, 2)
+        True
+
+        >>> tree.is_left_child(1, 2)
+        True
+
+        >>> tree.is_right_child(1, 3)
+        True
+
+        >>> tree.has_children(1)
+        True
+
+        >>> tree.has_parents(2)
+        True
+
+        >>> tree.hierarchies
+        [3, 4]
+
+        >>> tree.get_nodes_with_hierarchy(4)
+        [2, 3]
+
+        >>> tree.get_name_node(parent)
+        '3-1'
+
+        >>> tree.get_node("4-1")
+        Cluster(
+            - centroid = [0, 1, 2, 3],
+            - instances = [[0, 1, 2, 3]]
+            - starting_points = [0]
+            - dates = [datetime.date(2021, 1, 1)]
+        )
+
+        >>> routine = tree.convert_to_hierarchy_routine()
+        >>> print(routine)
+        HierarchyRoutine(
+            [Hierarchy: 3.
+                Routines(
+                    list_routines=[
+                        Cluster(
+                            - centroid = [1, 2, 3],
+                            - instances = [[1, 2, 3]]
+                            - starting_points = [1]
+                            - dates = [datetime.date(2021, 1, 2)]
+                        )
+                    ]
+                )
+            ],
+            [Hierarchy: 4.
+                Routines(
+                    list_routines=[
+                        Cluster(
+                            - centroid = [0, 1, 2, 3],
+                            - instances = [[0, 1, 2, 3]]
+                            - starting_points = [0]
+                            - dates = [datetime.date(2021, 1, 1)]
+                        ),
+                        Cluster(
+                            - centroid = [1, 2, 3, 4],
+                            - instances = [[1, 2, 3, 4]]
+                            - starting_points = [1]
+                            - dates = [datetime.date(2021, 1, 2)]
+                        )
+                    ]
+                )
+            ]
+
+        >>> tree.drop_node("4-3")
+        >>> tree.nodes
+        [1, 2]
 """
 
 from typing import Union, Optional, Iterator
@@ -3540,78 +3661,99 @@ class HierarchyRoutine:
 
 class ClusterTree:
     """
-    Represents a tree structure of clusters where each node is a cluster,
-    and the edges are the hierarchy relationships between the clusters.
-    Each node can have two children, the left and the right child.
-    Each child has to have hierarchy greater than the parent.
-    With this method, we can represent the hierarchy of the clusters in a tree structure
-    and see how are the clusters grown, if from the left or from the right.
+    Represents a tree of clusters, where each cluster is a node in the tree.
+    The tree is a directed graph where the edges represent the parent-child relationship between the clusters.
+    This class is used to represent the hierarchical structure of the clusters in the routines and how they are related.
 
     Public Methods:
     _______________
-        * ``assign_node(cluster: Cluster)``: assigns a node to the tree
-        * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
-        * ``drop_node(node: Union[Cluster, int])``: drops all the nodes that depends directly on the node specified (including the node)
-        * ``parents(node: Union[Cluster, int]) -> list[int]``: returns the parents of the node
+
+        * ``is_left_child(parent: Cluster, child: Cluster) -> bool``: checks if the child cluster corresponds to the left child of the parent cluster
+        * ``is_right_child(parent: Cluster, child: Cluster) -> bool``: checks if the child cluster corresponds to the right child of the parent cluster
+        * ``get_name_node(node: Union[Cluster, int]) -> str``: returns the name of the node from the cluster or the index
+        * ``get_node(node: Union[str, int]) -> Cluster``: returns the cluster of the node from the index or the name
+        * ``get_index(node: Union[Cluster, str]) -> int``: returns the index of the node from the cluster or the name
+        * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
+        * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
         * ``children(node: Union[Cluster, int]) -> list[int]``: returns the children of the node
+        * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
+        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent in the graph, `False` otherwise
+        * ``parents(node: Union[Cluster, int]) -> list[int]``: returns the parents of the node
         * ``has_children(node: Union[Cluster, int]) -> bool``: returns `True` if the node has children, `False` otherwise
         * ``has_parents(node: Union[Cluster, int]) -> bool``: returns `True` if the node has parents, `False` otherwise
-        * ``is_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is a child of the parent, `False` otherwise
-        * ``is_existent_left_child(parent: Union[Cluster, int], child: Union[Cluster, int]) -> bool``: returns `True` if the child is the left child of the parent, `False` otherwise
-        * ``to_dictionary() -> dict``: returns a dictionary where the keys are the indexes and the values are the clusters
-        * ``get_nodes_with_hierarchy(hierarchy: int) -> list[Cluster]``: returns the nodes with the specified hierarchy
-        * ``get_cluster_from_index(index: int) -> Cluster``: returns the cluster from the index
-        * ``get_index_from_cluster(cluster: Cluster) -> int``: returns the index from the cluster
+        * ``assign_names()``: assigns names to the existent nodes in the graph
+        * ``reset_names()``: resets the names of the nodes in the graph
+        * ``assign_node(cluster: Cluster)``: assigns a node to the tree
+        * ``add_edge(parent: Union[Cluster, int], child: Union[Cluster, int], is_left: bool)``: adds an edge to the tree
+        * ``drop_node(node: Union[Cluster, int, str])``: drops all the nodes that depends directly on the node specified (including the node)
+        * ``convert_to_hierarchy_routine() -> HierarchyRoutine``: converts the tree to a HierarchyRoutine
         * ``plot_tree(node_size: int = 1000, with_labels: bool = True, figsize: tuple[int, int] = (7, 7), title: Optional[str] = None, title_fontsize: int = 15, save_dir: Optional[str] = None)``: plots the tree
 
-
-    Properties:
+    Properties
     ___________
         **Getters:**
             * ``indexes: list[int]``: returns the list of indexes
             * ``nodes: list[Cluster]``: returns the list of clusters
             * ``graph: nx.classes.digraph.DiGraph``: returns the graph
             * ``edges: nx.classes.reportviews.OutEdgeDataView``: returns the edges of the graph
-            * ``hierarchies: list[int]``: returns the list of hierarchies
 
     Examples:
     _________
-
         >>> tree = ClusterTree()
-        >>> cluster1 = Cluster(np.array([1, 1, 1, 1]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 1), 0))
-        >>> cluster2 = Cluster(np.array([5, 5, 5, 5]), Sequence(Subsequence(np.array([5, 6, 7, 8]), datetime.date(2021, 1, 2), 4))
+        >>> parent = Cluster(np.array([1, 2, 3]), Sequence(Subsequence(np.array([1, 2, 3]), datetime.date(2021, 1, 2), 1)))
+        >>> left = Cluster(np.array([0, 1, 2, 3]), Sequence(Subsequence(np.array([0, 1, 2, 3]), datetime.date(2021, 1, 1), 0)))
+        >>> right = Cluster(np.array([1, 2, 3, 4]), Sequence(Subsequence(np.array([1, 2, 3, 4]), datetime.date(2021, 1, 2), 1)))
 
-        >>> tree.assign_node(cluster1)
-        >>> tree.assign_node(cluster2)
+        >>> tree.assign_node(parent)
+        >>> tree.assign_node(left)
+        >>> tree.assign_node(right)
 
         >>> tree.add_edge(1, 2, is_left=True)
-        >>> tree.edges
-        OutEdgeDataView([(1, 2, {'left': True})])
+        >>> tree.add_edge(1, 3, is_left=False)
+
+        >>> tree.assign_names()
 
         >>> tree.indexes
-        [1, 2]
+        [1, 2, 3]
 
         >>> tree.nodes
         [Cluster(
-            - centroid = [1, 1, 1, 1],
-            - instances = [[1, 2, 3, 4]]
+            - centroid = [1, 2, 3],
+            - instances = [[1, 2, 3]]
+            - starting_points = [1]
+            - dates = [datetime.date(2021, 1, 2)]
+        ), Cluster(
+            - centroid = [0, 1, 2, 3],
+            - instances = [[0, 1, 2, 3]]
             - starting_points = [0]
             - dates = [datetime.date(2021, 1, 1)]
         ), Cluster(
-            - centroid = [5, 5, 5, 5],
-            - instances = [[5, 6, 7, 8]]
-            - starting_points = [4]
+            - centroid = [1, 2, 3, 4],
+            - instances = [[1, 2, 3, 4]]
+            - starting_points = [1]
             - dates = [datetime.date(2021, 1, 2)]
         )]
 
-        >>> tree.graph
-        <networkx.classes.digraph.DiGraph at 0x7f8c3c8f9d90>
+        >>> tree.name_nodes
+        ['3-1', '4-1', '4-2']
 
-        >>> tree.children(1)
-        [2]
+        >>> tree.edges
+        OutEdgeDataView([(1, 2, {'left': True}), (1, 3, {'left': False})])
 
         >>> tree.parents(2)
         [1]
+
+        >>> tree.children(1)
+        [2, 3]
+
+        >>> tree.is_child(1, 2)
+        True
+
+        >>> tree.is_left_child(1, 2)
+        True
+
+        >>> tree.is_right_child(1, 3)
+        True
 
         >>> tree.has_children(1)
         True
@@ -3619,37 +3761,60 @@ class ClusterTree:
         >>> tree.has_parents(2)
         True
 
-        >>> tree.is_existent_left_child(1, 2)
-        True
-
-        >>> tree.is_existent_left_child(2, 1)
-        False
-
-        >>> tree.is_child(1, 2)
-        True
-
-        >>> tree.is_child(2, 1)
-        False
+        >>> tree.hierarchies
+        [3, 4]
 
         >>> tree.get_nodes_with_hierarchy(4)
-        [Cluster(
-            - centroid = [5, 5, 5, 5],
-            - instances = [[5, 6, 7, 8]]
-            - starting_points = [4]
-            - dates = [datetime.date(2021, 1, 2)]
-        )]
+        [2, 3]
 
-        >>> tree.get_cluster_from_index(1)
+        >>> tree.get_name_node(parent)
+        '3-1'
+
+        >>> tree.get_node("4-1")
         Cluster(
-            - centroid = [1, 1, 1, 1],
-            - instances = [[1, 2, 3, 4]]
+            - centroid = [0, 1, 2, 3],
+            - instances = [[0, 1, 2, 3]]
             - starting_points = [0]
             - dates = [datetime.date(2021, 1, 1)]
         )
 
-        >>> tree.get_index_from_cluster(cluster2)
-        2
+        >>> routine = tree.convert_to_hierarchy_routine()
+        >>> print(routine)
+        HierarchyRoutine(
+            [Hierarchy: 3.
+                Routines(
+                    list_routines=[
+                        Cluster(
+                            - centroid = [1, 2, 3],
+                            - instances = [[1, 2, 3]]
+                            - starting_points = [1]
+                            - dates = [datetime.date(2021, 1, 2)]
+                        )
+                    ]
+                )
+            ],
+            [Hierarchy: 4.
+                Routines(
+                    list_routines=[
+                        Cluster(
+                            - centroid = [0, 1, 2, 3],
+                            - instances = [[0, 1, 2, 3]]
+                            - starting_points = [0]
+                            - dates = [datetime.date(2021, 1, 1)]
+                        ),
+                        Cluster(
+                            - centroid = [1, 2, 3, 4],
+                            - instances = [[1, 2, 3, 4]]
+                            - starting_points = [1]
+                            - dates = [datetime.date(2021, 1, 2)]
+                        )
+                    ]
+                )
+            ]
 
+        >>> tree.drop_node("4-3")
+        >>> tree.nodes
+        [1, 2]
     """
 
     def __init__(self):
@@ -4947,6 +5112,8 @@ class ClusterTree:
 
             >>> tree.add_edge(1, 2, is_left=True)
             >>> tree.add_edge(1, 3, is_left=False)
+
+            >>> tree.plot_tree(node_size=1000, with_labels=True, figsize=(7, 7), title="Cluster Tree", title_fontsize=15, save_dir="results.png")
         """
 
         # Check the validity of the plot parameters
@@ -4969,8 +5136,7 @@ class ClusterTree:
 
         # Plot the graph
         nx.draw(self.__graph, pos=nx.nx_agraph.graphviz_layout(self.__graph, prog='dot'), with_labels=with_labels,
-                node_size=node_size, node_color=colors_nodes, edge_color=colors_edges,
-                labels=labels)
+                node_size=node_size, node_color=colors_nodes, edge_color=colors_edges, labels=labels)
 
         # Save the plot if it is indicated
         if save_dir is not None:

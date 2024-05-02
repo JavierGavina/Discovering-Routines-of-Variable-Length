@@ -900,14 +900,15 @@ class DRFL:
         self.__routines = self._subgroup(sequence=self.__sequence, R=self._R, C=self._C, G=self._G)
 
         # Obtain the indices of the clusters to keep based on the overlap test
-        keep_indices = self.__obtain_keep_indices(self._epsilon)
+        # keep_indices = self.__obtain_keep_indices(self._epsilon)
 
         # Filter self.routines to keep only those clusters marked for keeping
-        if len(self.__routines) > 0:
-            to_drop = [k for k in range(len(self.__routines)) if k not in keep_indices]
-            self.__routines = self.__routines.drop_indexes(to_drop)
+        # if len(self.__routines) > 0:
+        #     to_drop = [k for k in range(len(self.__routines)) if k not in keep_indices]
+        #     self.__routines = self.__routines.drop_indexes(to_drop)
 
-            # Remove Subsets
+        # Remove Subsets
+        if len(self.__routines) > 0:
             self.__routines = self.__routines.remove_subsets()
 
             # Drop consecutive instances
@@ -1322,7 +1323,7 @@ class ParallelSearchDRFL(DRFL):
             RuntimeError: If the model has not been fitted yet.
 
         Examples:
-            >>> import pandas as pd
+            >>> import pandas as 65606pd
 
             >>> time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
             >>> time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
@@ -1762,7 +1763,8 @@ class DRGS(DRFL):
             return
 
         self.__hierarchical_routines.add_routine(init_routine)
-        print(f"Fitted routine for length: {self.__length_range[0]}, routines detected: {len(init_routine)}, time: {(time.time() - st):.2f}, seconds")
+        print(
+            f"Fitted routine for length: {self.__length_range[0]}, routines detected: {len(init_routine)}, time: {(time.time() - st):.2f}, seconds")
 
         # iterate over the range of lengths
         while actual_length <= self.__length_range[1] and not \
@@ -1810,7 +1812,8 @@ class DRGS(DRFL):
             # Add the filtered routines to the hierarchical routines
             self.__hierarchical_routines.add_routine(filtered_routine)
 
-            print(f"Fitted routine for length: {actual_length}, routines detected: {len(filtered_routine)}, time: {(time.time() - st):.2f}, seconds")
+            print(
+                f"Fitted routine for length: {actual_length}, routines detected: {len(filtered_routine)}, time: {(time.time() - st):.2f}, seconds")
 
             actual_length += 1  # Increment the hierarchy
         self.__already_fitted = True  # Set the already_fitted attribute to True
@@ -2197,3 +2200,264 @@ class DRGS(DRFL):
 
             if length >= top_hierarchy:
                 break
+
+    def results_per_hour_day(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
+                             show_background_annotations: bool = True, title_fontsize: int = 20,
+                             coloured_text_fontsize: int = 20, text_fontsize: int = 15,
+                             show_grid: bool = False, show_hlines: bool = True,
+                             vline_width: Union[int, float] = 3,
+                             save_dir: Optional[str] = None):
+
+        tree = self.__hierarchical_routines.convert_to_cluster_tree()
+        date = self.time_series.index
+        top_days = min(top_days, len(date) // 24)
+        base_colors = cm.rainbow(np.linspace(0, 1, len(tree.name_nodes)))
+        # Iterate over the hierarchy levels and routines
+        for cluster in tree.nodes:
+            # Metadata of node
+            name = tree.get_name_node(cluster)
+            index = tree.get_index(cluster)
+            hierarchy, id_clust = name.split("-")
+            hierarchy, id_clust = int(hierarchy), int(id_clust)
+
+            # Get the starting points and dates of the cluster
+            starting_points = cluster.get_starting_points()
+
+            fig = plt.figure(figsize=figsize)
+            gs = gridspec.GridSpec(top_days, 1, figure=fig)
+            barcolors = ["gray"] * 24 * top_days
+            x_hour_minutes = [f"{hour:02}:00" for hour in range(24)]
+
+            grouped_sp = []
+            for day in range(top_days):
+                day_sps = []
+                for hour in range(24):
+                    if day * 24 + hour in starting_points:
+                        day_sps.append(day * 24 + hour)
+
+                grouped_sp.append(day_sps)
+
+            for sp in starting_points:
+                for k in range(hierarchy):
+                    if sp + k < top_days * 24:
+                        barcolors[sp + k] = base_colors[index - 1]
+
+            # divide barcolors in list of sublists of length 24 elements
+            grouped_barcolors = [barcolors[i:i + 24] for i in range(0, len(barcolors), 24)]
+
+            for i in range(top_days):
+                fig.add_subplot(gs[i, 0])
+
+                vlines = [x - 24 * i for x in grouped_sp[i]]
+
+                # for vline in vlines:
+                #     plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
+                #     for k in range(hierarchy):
+                #         if vline + k < 24:
+                #             plt.text(vline + k - 0.05, self.time_series[vline + k] - 0.8,
+                #                     s=f"{self.time_series[vline + k]}", fontsize=coloured_text_fontsize,
+                #                     backgroundcolor="white", color=base_colors[index - 1])
+                for vline in vlines:
+                    plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
+
+                for k in range(24):
+                    if isinstance(grouped_barcolors[i][k], np.ndarray):
+                        plt.text(k - 0.05, self.time_series[i * 24 + k] - 0.8,
+                                s=f"{self.time_series[i * 24 + k]}", fontsize=coloured_text_fontsize,
+                                backgroundcolor="white", color=base_colors[index - 1])
+
+                plt.bar(np.arange(0, 24, 1), self.time_series[i * 24:(i + 1) * 24],
+                       color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
+
+                if show_background_annotations:
+                    for k in range(24):
+                        if not isinstance(grouped_barcolors[i][k], np.ndarray):
+                            plt.text(k - 0.05, self.time_series[i * 24 + k] + 0.8,
+                                    s=f"{self.time_series[i * 24 + k]}", fontsize=text_fontsize,
+                                    color="black")
+
+                plt.title(
+                    f"Node: {name}; Date {date[i * 24].year} / {date[i * 24].month} / {date[i * 24].day}",
+                    fontsize=title_fontsize)
+
+                plt.xlabel("Time", fontsize=15)
+                plt.ylabel("N minutes", fontsize=15)
+                plt.ylim(0, 75)
+                plt.xlim(-1, 25)
+                plt.xticks(np.arange(0, 24, 1), x_hour_minutes, rotation=90)
+                if show_grid:
+                    plt.grid(True)
+
+                if show_hlines:
+                    plt.axhline(y=self._G, color=base_colors[index - 1], linestyle=":", linewidth=1.5)
+
+            plt.tight_layout()
+
+            if save_dir is not None:
+                plt.savefig(f"{save_dir}/node_{name}.png")
+
+            plt.show()
+
+
+    def results_per_quarter_hour(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
+                             show_background_annotations: bool = True, title_fontsize: int = 20,
+                             coloured_text_fontsize: int = 20, text_fontsize: int = 15,
+                             show_grid: bool = False, show_hlines: bool = True,
+                             vline_width: Union[int, float] = 3,
+                             save_dir: Optional[str] = None):
+
+        tree = self.__hierarchical_routines.convert_to_cluster_tree()
+        date = self.time_series.index
+        top_days = min(top_days, len(date) // 24 * 4)
+        base_colors = cm.rainbow(np.linspace(0, 1, len(tree.name_nodes)))
+        # Iterate over the hierarchy levels and routines
+        for cluster in tree.nodes:
+            # Metadata of node
+            name = tree.get_name_node(cluster)
+            index = tree.get_index(cluster)
+            hierarchy, id_clust = name.split("-")
+            hierarchy, id_clust = int(hierarchy), int(id_clust)
+
+            # Get the starting points and dates of the cluster
+            starting_points = cluster.get_starting_points()
+
+            fig = plt.figure(figsize=figsize)
+            gs = gridspec.GridSpec(top_days, 1, figure=fig)
+            barcolors = ["gray"] * 24 * 4 * top_days
+            x_hour_minutes = [f"{hour:02}:{minute:02}" for hour in range(24) for minute in range(0, 60, 15)]
+            x_hour_minutes = [x for idx, x in enumerate(x_hour_minutes) if idx % 2 == 0]
+
+            grouped_sp = []
+            for day in range(top_days):
+                day_sp = []
+                for hour in range(24):
+                    for minute in range(0, 60, 15):
+                        if day * 24 * 4 + hour * 4 + minute // 15 in starting_points:
+                            day_sp.append(day * 24 * 4 + hour * 4 + minute // 15)
+
+                grouped_sp.append(day_sp)
+
+            for sp in starting_points:
+                for k in range(hierarchy):
+                    if sp + k < top_days * 24 * 4:
+                        barcolors[sp + k] = base_colors[index - 1]
+
+            # divide barcolors in list of sublists of length 24 elements
+            grouped_barcolors = [barcolors[i:i + 24 * 4] for i in range(0, len(barcolors), 24 * 4)]
+
+            for i in range(top_days):
+                fig.add_subplot(gs[i, 0])
+
+                vlines = [x - 24 * 4 * i for x in grouped_sp[i]]
+
+                # for vline in vlines:
+                #     plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
+                #     for k in range(hierarchy):
+                #         if vline + k < 24 * 4:
+                #             plt.text(vline + k - 0.05, self.time_series[vline + k] - 0.8,
+                #                      s=f"{self.time_series[vline + k]}", fontsize=coloured_text_fontsize,
+                #                      backgroundcolor="white", color=base_colors[index - 1])
+                for vline in vlines:
+                    plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
+
+                for k in range(24 * 4):
+                    if isinstance(grouped_barcolors[i][k], np.ndarray):
+                        plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] - 0.8,
+                                s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
+                                backgroundcolor="white", color=base_colors[index - 1])
+
+                plt.bar(np.arange(0, 24 * 4, 1), self.time_series[i * 24 * 4:(i + 1) * 24 * 4],
+                        color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
+
+                if show_background_annotations:
+                    for k in range(24*4):
+                        if not isinstance(grouped_barcolors[i][k], np.ndarray):
+                            plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] + 0.8,
+                                     s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=text_fontsize,
+                                     color="black")
+
+                plt.title(
+                    f"Node: {name}; Date {date[i * 24 * 4].year} / {date[i * 24 * 4].month} / {date[i * 24 * 4].day}",
+                    fontsize=title_fontsize)
+
+                plt.xlabel("Time", fontsize=15)
+                plt.ylabel("N minutes", fontsize=15)
+                plt.ylim(0, 20)
+                plt.xlim(-1, 24*4 + 2)
+                plt.xticks(np.arange(0, 24*4, 2), x_hour_minutes, rotation=90)
+                if show_grid:
+                    plt.grid(True)
+
+                if show_hlines:
+                    plt.axhline(y=self._G, color=base_colors[index - 1], linestyle=":", linewidth=1.5)
+
+            plt.tight_layout()
+
+            if save_dir is not None:
+                plt.savefig(f"{save_dir}/node_{name}.png")
+
+            plt.show()
+
+
+    # def plot_results_per_day(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
+    #                          show_background_annotations: bool = True, title_fontsize: int = 20,
+    #                          coloured_text_fontsize: int = 20, text_fontsize: int = 15,
+    #                          show_grid: bool = False, vline_width: Union[int, float] = 3,
+    #                          save_dir: Optional[str] = None):
+    #
+    #     tree = self.__hierarchical_routines.convert_to_cluster_tree()
+    #     date = self.time_series.index
+    #     top_days = min(top_days, len(date) // 24)
+    #     base_colors = cm.rainbow(np.linspace(0, 1, len(tree.name_nodes)))
+    #
+    #     for hierarchy, routine in self.__hierarchical_routines.items:
+    #         for id_cluster, cluster in enumerate(routine):
+    #             starting_points = cluster.get_starting_points()
+    #             fig, ax = plt.subplots(top_days, 1, figsize=figsize)
+    #             gs = gridspec.GridSpec(top_days, 1, figure=fig)
+    #             for i in range(top_days):
+    #                 barcolors = ["gray"] * 24
+    #                 x_hour_minutes = [f"{hour:02}:00" for hour in range(24)]
+    #                 ax = fig.add_subplot(gs[i, 0])
+    #                 for sp in starting_points:
+    #                     if i * 24 <= sp < (i + 1) * 24:
+    #                         ax.axvline(x=sp - i * 24, color=base_colors[tree.get_index(cluster)-1], linestyle="--", linewidth=vline_width)
+    #                         for k in range(cluster.length_cluster_subsequences):
+    #                             if sp - i * 24 + k < 24:
+    #                                 ax.text(sp - i * 24 + k - 0.05, self.time_series[sp + k] - 0.8,
+    #                                         s=f"{self.time_series[sp + k]}", fontsize=coloured_text_fontsize,
+    #                                         backgroundcolor="white", color=base_colors[tree.get_index(cluster)-1])
+    #                                 barcolors[sp - i * 24 + k] = base_colors[tree.get_index(cluster)-1]
+    #
+    #                 ax.bar(np.arange(0, 24, 1), self.time_series[i * 24:(i + 1) * 24],
+    #                        color=barcolors, edgecolor="black", linewidth=bars_linewidth)
+    #
+    #                 ax.set_title(
+    #                     f"Node: {hierarchy}-{id_cluster + 1}; Date {date[i * 24].year} / {date[i * 24].month} / {date[i * 24].day}",
+    #                     fontsize=title_fontsize)
+    #                 ax.set_xlabel("Time", fontsize=15)
+    #                 ax.set_ylabel("N minutes", fontsize=15)
+    #
+    #                 ax.set_xticks(np.arange(0, 24, 2),
+    #                               labels=[x for idx, x in enumerate(x_hour_minutes) if idx % 2 == 0],
+    #                               rotation=90)
+    #                 if show_grid:
+    #                     ax.grid(True)
+    #
+    #                 ax.set_ylim(0, 75)
+    #                 ax.set_xlim(-1, 25)
+    #
+    #                 # Annotate height of the not colored bars
+    #                 if show_background_annotations:
+    #                     for k in range(24):
+    #                         if not isinstance(barcolors[k], np.ndarray):
+    #                             ax.text(k - 0.05, self.time_series[i * 24 + k] + 0.8,
+    #                                     s=f"{self.time_series[i * 24 + k]}", fontsize=text_fontsize,
+    #                                     color="black")
+    #
+    #             plt.tight_layout()
+    #
+    #             if save_dir is not None:
+    #                 plt.savefig(f"{save_dir}/node_{hierarchy}-{id_cluster + 1}.png")
+    #
+    #             plt.show()

@@ -3,6 +3,8 @@ import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
+import matplotlib.cm as cm
 from tqdm import tqdm
 import os
 import time
@@ -75,12 +77,85 @@ def group_by_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
     return pd.concat(results).reset_index(drop=True)
 
 
+def group_by_quarter_hour(data: pd.DataFrame, correspondences: dict) -> pd.DataFrame:
+    # List of all potential column names based on correspondences
+    hour_cols = ["Year", "Month", "Day", "Hour", "Quarter"] + [f"N_{value}" for value in set(correspondences.values())]
+
+    results = []
+    for (year, month, day), df in data.groupby(level=[0, 1, 2]):
+        df = df.melt(var_name='Minute', value_name='Room')
+        df['Hour'] = df['Minute'].str.extract('(\d+)').astype(int) // 60
+        df['Quarter'] = (df['Minute'].str.extract('(\d+)').astype(int) % 60) // 15
+        df['Room'] = df['Room'].map(correspondences)
+
+        # Count occurrences by hour
+        hourly_data = df.pivot_table(index=["Hour", "Quarter"], columns="Room", aggfunc='size', fill_value=0)
+        hourly_data = hourly_data.rename(columns=lambda x: f"N_{x}")
+        hourly_data.reset_index(inplace=True)
+        hourly_data['Year'] = year
+        hourly_data['Month'] = month
+        hourly_data['Day'] = day
+
+        # Ensure all columns are present
+        for col in hour_cols:
+            if col not in hourly_data:
+                hourly_data[col] = 0
+
+        results.append(hourly_data[hour_cols])
+
+    return pd.concat(results).reset_index(drop=True)
+
+
 def get_time_series(path_to_feat_extraction: str, room: str) -> pd.Series:
     feat_extraction = pd.read_csv(path_to_feat_extraction)
-    feat_extraction["Date"] = pd.to_datetime(feat_extraction[["Year", "Month", "Day", "Hour"]])
+    if "Quarter" not in feat_extraction.columns.tolist():
+        feat_extraction["Date"] = pd.to_datetime(feat_extraction[["Year", "Month", "Day", "Hour"]])
+
+    else:
+        feat_extraction["Quarter"] = feat_extraction["Quarter"] * 15
+        feat_extraction["Date"] = pd.to_datetime(feat_extraction[["Year", "Month", "Day", "Hour"]])
+        for row in range(feat_extraction.shape[0]):
+            feat_extraction.loc[row, "Date"] = feat_extraction.loc[row, "Date"] + pd.Timedelta(
+                seconds=feat_extraction.loc[row, "Quarter"] * 60)
+        # feat_extraction["Date"] = pd.to_datetime(feat_extraction[["Year", "Month", "Day", "Hour", "Quarter"]])
+
     feat_extraction.set_index("Date", inplace=True)
     room_time_series = feat_extraction[f"N_{room}"]
+
     return room_time_series
+
+
+def plot_groundtruth(time_series: pd.Series, room: str, top_days: int = 30, figsize=(30, 30), barcolors="blue",
+                     linewidth=1.5, save_dir: str = None):
+    date = time_series.index
+    top_days = min(top_days, len(date) // (24 * 4))
+    fig = plt.figure(figsize=figsize)
+    gs = gridspec.GridSpec(top_days, 1, figure=fig)
+    for i in range(top_days):
+        x_hour_minutes = [f"{hour:02}:{minute:02}" for hour in range(24) for minute in range(0, 60, 15)]
+        ax = fig.add_subplot(gs[i, 0])
+        ax.bar(np.arange(0, 24 * 4, 1), time_series[i * 24 * 4:(i + 1) * 24 * 4],
+               color=barcolors, edgecolor="black", linewidth=linewidth)
+        ax.set_title(f"N {room}; Date {date[i * 24 * 4].year} / {date[i * 24 * 4].month} / {date[i * 24 * 4].day}",
+                     fontsize=20)
+        ax.set_xlabel("Time", fontsize=15)
+        ax.set_ylabel("N minutes", fontsize=15)
+        ax.set_xticks(np.arange(0, 24 * 4, 2), labels=[x for idx, x in enumerate(x_hour_minutes) if idx % 2 == 0],
+                      rotation=90)
+        ax.grid(True)
+        ax.set_ylim(0, 17)
+        ax.set_xlim(-1, 24 * 4 + 1)
+
+        # Annotate height of the bar
+        for idx, value in enumerate(time_series[i * 24 * 4:(i + 1) * 24 * 4]):
+            ax.text(idx, value + 0.5, str(value), ha='center', va='bottom', fontsize=10)
+
+    plt.tight_layout()
+
+    if save_dir is not None:
+        plt.savefig(save_dir)
+
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -90,13 +165,28 @@ if __name__ == "__main__":
     # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
     # time_series.index = pd.date_range(start="2024-01-01", periods=len(time_series))
 
+    # time_series_2 = pd.Series([0, 0, 60, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0])
+    # time_series_2.index = pd.date_range(start="2024-01-01", periods=len(time_series_2))
+
     # json_dictionary_file = "data/dictionary_rooms.json"
     # data_dir = "data/activities-simulation-easy.csv"
     # correspondencies = obtain_correspondencies(json_dictionary_file)
     # df = load_data(data_dir)
-    # feat_extraction = group_by_hour(df, correspondencies)
-    # pd.set_option('display.max_columns', None, 'display.max_rows', None)
-    # feat_extraction.to_csv("data/out_feat_extraction.csv", index=False)
+    # feat_extraction = group_by_quarter_hour(df, correspondencies)
+    # print(feat_extraction.head(300))
+    # feat_extraction.to_csv("data/out_feat_extraction_quarters.csv", index=False)
+
+    # os.makedirs("groundtruth_figs", exist_ok=True)
+    # correspondencies = obtain_correspondencies("data/dictionary_rooms.json")
+    # base_colors = cm.rainbow(np.linspace(0, 1, len(correspondencies)))
+    # for room, room_name in correspondencies.items():
+    #     room_time_series = get_time_series("data/out_feat_extraction_quarters.csv", room_name)
+    #     plot_groundtruth(time_series=room_time_series, room=room_name,
+    #                      top_days=15, figsize=(30, 50),
+    #                      barcolors=base_colors[room - 1],
+    #                      save_dir=f"groundtruth_figs/{room_name}.png")
+
+    # plot_groundtruth(room_time_series, top_days=15, figsize=(30, 50))
 
     # json_dictionary_file = "data/dictionary_rooms.json"
     # data_dir = "data/activities-simulation-easy.csv"
@@ -106,21 +196,48 @@ if __name__ == "__main__":
     # pd.set_option('display.max_columns', None, 'display.max_rows', None)
     # feat_extraction.to_csv("data/out_feat_extraction.csv", index=False)
 
-    # room_time_series = get_time_series("data/out_feat_extraction.csv", "room")
-    #
-    # drgs = DRGS(length_range=(3, 100), R=5, C=300, G=35, epsilon=1, L=2, fusion_distance=0.001)
+    # room_time_series = get_time_series("data/out_feat_extraction.csv", "room").loc["2024-01-01 00:00:00":"2024-03-01 00:00:00"]
+
+    #     drgs = DRGS(length_range=(3, 100), R=5, C=60, G=30, epsilon=1, L=1, fusion_distance=0.0001)
+    #     drgs.fit(room_time_series)
+    #     os.makedirs("plot_hours_routines", exist_ok=True)
+    #     drgs.results_per_hour_day(top_days=15, figsize=(30, 60), save_dir="plot_hours_routines",
+    #                               bars_linewidth=2, show_background_annotations=True)
+
+    # room_time_series = get_time_series("data/out_feat_extraction_quarters.csv", "room").loc[
+    #                    "2024-02-01 00:00:00":"2024-02-20 00:00:00"]
+
+    gym_hour = get_time_series("data/out_feat_extraction.csv", "gym").loc["2024-01-01 00:00:00":"2024-03-01 00:00:00"]
+    gym_quarters = get_time_series("data/out_feat_extraction_quarters.csv", "gym").loc["2024-02-01 00:00:00":"2024-02-20 00:00:00"]
+
+    drgs_hours = DRGS(length_range=(2, 100), R=5, C=4, G=20, epsilon=1, L=1, fusion_distance=0.0001)
+    drgs_quarters = DRGS(length_range=(3, 100), R=3, C=10, G=5, epsilon=1, L=1, fusion_distance=0.0001)
+
+    os.makedirs("plot_hours_routines", exist_ok=True)
+    drgs_hours.fit(gym_hour)
+    drgs_hours.results_per_hour_day(top_days=15, figsize=(30, 60), save_dir="plot_hours_routines",
+                                    bars_linewidth=2, show_background_annotations=True)
+    tree_hours = drgs_hours.convert_to_cluster_tree()
+    tree_hours.plot_tree(title="Final node evolution", save_dir="plot_hours_routines/final_tree_hours.png",
+                         figsize=(7, 7))
+
+    os.makedirs("plot_quarters_routines", exist_ok=True)
+    drgs_quarters.fit(gym_quarters)
+    drgs_quarters.results_per_quarter_hour(top_days=15, figsize=(50, 60), save_dir="plot_quarters_routines",
+                                           bars_linewidth=2, show_background_annotations=True)
+    tree_quarters = drgs_quarters.convert_to_cluster_tree()
+    tree_quarters.plot_tree(title="Final node evolution", save_dir="plot_quarters_routines/final_tree_quarters.png",
+                            figsize=(14, 14))
+
+    # drgs = DRGS(length_range=(5, 100), R=2, C=500, G=45, epsilon=1, L=1, fusion_distance=0.0001)
     # drgs.fit(room_time_series)
-    # os.makedirs("results", exist_ok=True)
+    # os.makedirs("resuldts", exist_ok=True)
     # drgs.plot_separate_hierarchical_results(title_fontsize=35, labels_fontsize=30, yticks_fontsize=20,
-    #                                         linewidth_bars=3, vline_width=3, xlim=(0, 300), figsize=(50, 25),
-    #                                         show_xticks=False, save_dir="results")
+    #                                         linewidth_bars=3, vline_width=3, figsize=(50, 25),
+    #                                         xlim=(0, 300), show_xticks=False, save_dir="results")
     # routines = drgs.get_results()
-    # routines.to_json("results/detected_routines.json")
-    routines = HierarchyRoutine()
-    routines.from_json("results/detected_routines.json")
-    tree = routines.convert_to_cluster_tree()
-    tree.plot_tree(title="Final node evolution")
-
+    # tree = routines.convert_to_cluster_tree()
+    # tree.plot_tree(title="Final node evolution", save_dir="results/final_tree.png", figsize=(14,14))
 
     # tree.plot_tree(figsize=(45, 25), title="Dropping extra nodes")
     # print(dropped)
