@@ -1493,6 +1493,27 @@ class Sequence:
 
         return subsequences
 
+    def remove_subsequence(self, subsequence: Union[Subsequence, int]) -> None:
+        not_exists_msg = "subsequence does not exist in the sequence"
+
+        if not isinstance(subsequence, (Subsequence, int)):
+            raise TypeError(
+                f"subsequence must be an instance of Subsequence or integer. Got {type(subsequence).__name__} instead")
+
+        if isinstance(subsequence, int):
+            if subsequence not in self.get_starting_points():
+                raise IndexError(not_exists_msg)
+
+            idx = self.get_starting_points().index(subsequence)
+            del self.__list_sequences[idx]
+
+        if isinstance(subsequence, Subsequence):
+            if subsequence not in self.__list_sequences:
+                raise IndexError(not_exists_msg)
+
+            idx = self.__list_sequences.index(subsequence)
+            del self.__list_sequences[idx]
+
     def extract_components(self, flatten: bool = False) -> tuple[np.ndarray, list[datetime.date], list[int]]:
         """
         Extract the components of a sequence.
@@ -2274,6 +2295,19 @@ class Cluster:
         distance = np.max(np.abs(self.centroid - other.centroid))
         return distance < distance_threshold
 
+    def is_overlapping(self, other: 'Cluster', epsilon: Union[int, float]) -> bool:
+
+        other_sequences = other.get_sequences()
+        self_sequences = self.get_sequences()
+
+        N_matches = 0
+        N_max = min(len(other_sequences), len(self_sequences))
+        for subsequence in self_sequences:
+            if subsequence in other_sequences:
+                N_matches += 1
+
+        return N_matches / N_max >= epsilon
+
 
 class Routines:
     """
@@ -2979,6 +3013,38 @@ class Routines:
                 new_routines.add_routine(cluster)
 
         return new_routines
+
+    # def remove_repeated_instances(self) -> 'Routines':
+    #     """
+    #     If some instance is repeated in two clusters,
+    #     the method removes the repeated instance from the cluster with less instances.
+    #     If both clusters have the same number of instances,
+    #     the method removes the instance from the cluster with less cumulative magnitude
+    #
+    #     Returns:
+    #         `Routines`. The routines without the repeated instances
+    #     """
+    #
+    #     new_routines = Routines()
+    #     existent_sequences: list[list[Sequence]] = []
+    #     for i in range(len(self.__routines)):
+    #         for j in range(i + 1, len(self.__routines)):
+    #             sequence_i = self.__routines[i].get_sequences()
+    #             sequence_j = self.__routines[j].get_sequences()
+    #             for id, subsequence_i in enumerate(sequence_i):
+    #                 if subsequence_i in sequence_j:
+    #                     if len(sequence_i) < len(sequence_j):
+    #                         sequence_j.remove(subsequence_i)
+    #                     elif len(sequence_i) > len(sequence_j):
+    #                         sequence_i.remove(subsequence_i)
+    #                     else:
+    #                         if sum([np.sum(subsequence.instance) for subsequence in sequence_i]) < sum([np.sum(subsequence.instance) for subsequence in sequence_j]):
+    #                             sequence_j.remove(subsequence_i)
+    #                         else:
+    #                             sequence_i.remove(subsequence_i)
+    #
+    #
+    #     return new_routines
 
     def remove_subsets(self) -> 'Routines':
         """

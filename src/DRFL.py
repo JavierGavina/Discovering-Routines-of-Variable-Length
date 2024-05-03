@@ -1722,6 +1722,53 @@ class DRGS(DRFL):
         new_routine = new_routine.drop_duplicates()
         return new_routine
 
+    def __remove_overlapping_clusters(self, routine: Routines, epsilon: Union[float, int]) -> Routines:
+        clusters_to_drop: list[Cluster] = []
+
+        if epsilon == 1:
+            return routine
+
+        for i in range(len(routine)):
+            for j in range(i + 1, len(routine)):
+
+                if routine[j] in clusters_to_drop:
+                    continue
+
+                # If the clusters are overlapping
+                if routine[i].is_overlapping(routine[j], epsilon):
+
+                    len_i = len(routine[i].get_sequences())
+                    len_j = len(routine[j].get_sequences())
+
+                    # Drop the cluster with the highest number of instances
+                    if len_i > len_j:
+                        clusters_to_drop.append(routine[j])
+
+                    elif len_j > len_i:
+                        clusters_to_drop.append(routine[i])
+
+                    # If the number of instances is the same, drop the cluster with lower magnitude
+                    else:
+                        magnitude_i = routine[i].cumulative_magnitude()
+                        magnitude_j = routine[j].cumulative_magnitude()
+
+                        if magnitude_i > magnitude_j:
+                            clusters_to_drop.append(routine[j])
+
+                        elif magnitude_j > magnitude_i:
+                            clusters_to_drop.append(routine[i])
+
+                        else:
+                            clusters_to_drop.append(routine[np.random.choice([i, j])])
+
+        new_routine = Routines()
+        for cluster in routine:
+            if cluster not in clusters_to_drop:
+                new_routine.add_routine(cluster)
+        return new_routine
+
+
+
     def fit(self, time_series: pd.Series) -> None:
         """
         Fit the DRGS algorithm to the time series data.
@@ -1803,6 +1850,9 @@ class DRGS(DRFL):
 
             # Fusion of similar clusters
             unique_routines = self.__similar_clusters_fusion(unique_routines)
+
+            # Remove cluster if the percentage of repetitions with other cluster is greater than epsilon
+            unique_routines = self.__remove_overlapping_clusters(unique_routines, epsilon=self._epsilon)
 
             # Filter the routines with no child repeat and continue to next iteration
             parent = self.__hierarchical_routines[actual_length - 1]
@@ -2206,6 +2256,7 @@ class DRGS(DRFL):
                              coloured_text_fontsize: int = 20, text_fontsize: int = 15,
                              show_grid: bool = False, show_hlines: bool = True,
                              vline_width: Union[int, float] = 3,
+                             show_plot: bool = True,
                              save_dir: Optional[str] = None):
 
         tree = self.__hierarchical_routines.convert_to_cluster_tree()
@@ -2263,18 +2314,18 @@ class DRGS(DRFL):
                 for k in range(24):
                     if isinstance(grouped_barcolors[i][k], np.ndarray):
                         plt.text(k - 0.05, self.time_series[i * 24 + k] - 0.8,
-                                s=f"{self.time_series[i * 24 + k]}", fontsize=coloured_text_fontsize,
-                                backgroundcolor="white", color=base_colors[index - 1])
+                                 s=f"{self.time_series[i * 24 + k]}", fontsize=coloured_text_fontsize,
+                                 backgroundcolor="white", color=base_colors[index - 1])
 
                 plt.bar(np.arange(0, 24, 1), self.time_series[i * 24:(i + 1) * 24],
-                       color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
+                        color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
 
                 if show_background_annotations:
                     for k in range(24):
                         if not isinstance(grouped_barcolors[i][k], np.ndarray):
                             plt.text(k - 0.05, self.time_series[i * 24 + k] + 0.8,
-                                    s=f"{self.time_series[i * 24 + k]}", fontsize=text_fontsize,
-                                    color="black")
+                                     s=f"{self.time_series[i * 24 + k]}", fontsize=text_fontsize,
+                                     color="black")
 
                 plt.title(
                     f"Node: {name}; Date {date[i * 24].year} / {date[i * 24].month} / {date[i * 24].day}",
@@ -2296,15 +2347,17 @@ class DRGS(DRFL):
             if save_dir is not None:
                 plt.savefig(f"{save_dir}/node_{name}.png")
 
-            plt.show()
+            if show_plot:
+                plt.show()
 
-
-    def results_per_quarter_hour(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
-                             show_background_annotations: bool = True, title_fontsize: int = 20,
-                             coloured_text_fontsize: int = 20, text_fontsize: int = 15,
-                             show_grid: bool = False, show_hlines: bool = True,
-                             vline_width: Union[int, float] = 3,
-                             save_dir: Optional[str] = None):
+    def results_per_quarter_hour(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30),
+                                 bars_linewidth: int = 1.5,
+                                 show_background_annotations: bool = True, title_fontsize: int = 20,
+                                 coloured_text_fontsize: int = 20, text_fontsize: int = 15,
+                                 show_grid: bool = False, show_hlines: bool = True,
+                                 vline_width: Union[int, float] = 3,
+                                 show_plot: bool = True,
+                                 save_dir: Optional[str] = None):
 
         tree = self.__hierarchical_routines.convert_to_cluster_tree()
         date = self.time_series.index
@@ -2363,14 +2416,14 @@ class DRGS(DRFL):
                 for k in range(24 * 4):
                     if isinstance(grouped_barcolors[i][k], np.ndarray):
                         plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] - 0.8,
-                                s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
-                                backgroundcolor="white", color=base_colors[index - 1])
+                                 s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
+                                 backgroundcolor="white", color=base_colors[index - 1])
 
                 plt.bar(np.arange(0, 24 * 4, 1), self.time_series[i * 24 * 4:(i + 1) * 24 * 4],
                         color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
 
                 if show_background_annotations:
-                    for k in range(24*4):
+                    for k in range(24 * 4):
                         if not isinstance(grouped_barcolors[i][k], np.ndarray):
                             plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] + 0.8,
                                      s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=text_fontsize,
@@ -2383,8 +2436,8 @@ class DRGS(DRFL):
                 plt.xlabel("Time", fontsize=15)
                 plt.ylabel("N minutes", fontsize=15)
                 plt.ylim(0, 20)
-                plt.xlim(-1, 24*4 + 2)
-                plt.xticks(np.arange(0, 24*4, 2), x_hour_minutes, rotation=90)
+                plt.xlim(-1, 24 * 4 + 2)
+                plt.xticks(np.arange(0, 24 * 4, 2), x_hour_minutes, rotation=90)
                 if show_grid:
                     plt.grid(True)
 
@@ -2396,8 +2449,8 @@ class DRGS(DRFL):
             if save_dir is not None:
                 plt.savefig(f"{save_dir}/node_{name}.png")
 
-            plt.show()
-
+            if show_plot:
+                plt.show()
 
     # def plot_results_per_day(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
     #                          show_background_annotations: bool = True, title_fontsize: int = 20,

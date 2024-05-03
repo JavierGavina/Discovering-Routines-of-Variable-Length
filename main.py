@@ -83,7 +83,7 @@ def get_time_series(path_to_feat_extraction: str, room: str) -> pd.Series:
 
 
 def plot_quarters_groundtruth(time_series: pd.Series, room: str, top_days: int = 30, figsize=(30, 30), barcolors="blue",
-                              linewidth=1.5, save_dir: str = None):
+                              linewidth=1.5, show_plot: bool = True, save_dir: str = None):
     date = time_series.index
     top_days = min(top_days, len(date) // (24 * 4))
     fig = plt.figure(figsize=figsize)
@@ -112,11 +112,12 @@ def plot_quarters_groundtruth(time_series: pd.Series, room: str, top_days: int =
     if save_dir is not None:
         plt.savefig(save_dir)
 
-    plt.show()
+    if show_plot:
+        plt.show()
 
 
 def plot_hours_groundtruth(time_series: pd.Series, room: str, top_days: int = 30, figsize=(30, 30), barcolors="blue",
-                           linewidth=1.5, save_dir: str = None):
+                           linewidth=1.5, show_plot: bool = True, save_dir: str = None):
     date = time_series.index
     top_days = min(top_days, len(date) // 24)
     fig = plt.figure(figsize=figsize)
@@ -144,7 +145,8 @@ def plot_hours_groundtruth(time_series: pd.Series, room: str, top_days: int = 30
     if save_dir is not None:
         plt.savefig(save_dir)
 
-    plt.show()
+    if show_plot:
+        plt.show()
 
 
 if __name__ == "__main__":
@@ -157,7 +159,7 @@ if __name__ == "__main__":
     # time_series_2 = pd.Series([0, 0, 60, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0])
     # time_series_2.index = pd.date_range(start="2024-01-01", periods=len(time_series_2))
 
-    for DIFICULTY in ["easy", "medium", "hard"]:
+    for DIFICULTY in ["hard"]:
 
         ROOT_DATA = "data/data2"
         DICTIONARY_FILE = f"{ROOT_DATA}/metadata/dictionary_rooms.json"
@@ -192,6 +194,7 @@ if __name__ == "__main__":
         os.makedirs(QUARTERS_GROUNDTRUTH, exist_ok=True)
 
         correspondencies = json.load(open(DICTIONARY_FILE))
+
         hour_data = extract_data_grouped_by_hour(DATA_FILE, DICTIONARY_FILE)
         quarter_data = extract_data_grouped_by_quarter_hour(DATA_FILE, DICTIONARY_FILE)
 
@@ -210,74 +213,77 @@ if __name__ == "__main__":
             hour_time_series = get_time_series(HOUR_EXTRACTED, room)
             quarter_time_series = get_time_series(QUARTER_EXTRACTED, room)
 
-            plot_hours_groundtruth(hour_time_series, room, top_days=15, figsize=(30, 60),
-                                   save_dir=f"{HOURS_GROUNDTRUTH}/{room}.png")
-            plot_quarters_groundtruth(quarter_time_series, room, top_days=15, figsize=(50, 60),
-                                      save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.png")
+            # plot_hours_groundtruth(hour_time_series, room, top_days=15, figsize=(30, 60),
+            #                        save_dir=f"{HOURS_GROUNDTRUTH}/{room}.png", show_plot=False)
+            # plot_quarters_groundtruth(quarter_time_series, room, top_days=15, figsize=(50, 60),
+            #                           save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.png", show_plot=False)
 
-            # R1, C1, G1, epsilon1, L1, fusion_distance1 = 5, 5, 20, 1, 1, 0.0001
-            # R2, C2, G2, epsilon2, L2, fusion_distance2 = 3, 10, 5, 1, 1, 0.0001
-            #
-            # if room == "room" and DIFICULTY != "hard":
-            #     R1, C1, G1, epsilon1, L1, fusion_distance1 = 3, 40, 20, 1, 1, 0.0001
-            #     R2, C2, G2, epsilon2, L2, fusion_distance2 = 1, 80, 5, 1, 1, 0.0001
-            #
-            # drgs_hours = DRGS(length_range=(3, 100), R=R1, C=C1, G=G1, epsilon=epsilon1, L=L1,
-            #                   fusion_distance=fusion_distance1)
-            #
-            # drgs_quarters = DRGS(length_range=(3, 100), R=R2, C=C2, G=G2, epsilon=epsilon2, L=L2,
-            #                      fusion_distance=fusion_distance2)
-            #
-            # drgs_hours.fit(hour_time_series)
-            # drgs_hours.results_per_hour_day(top_days=15, figsize=(30, 60), save_dir=path_out_hour,
-            #                                 bars_linewidth=2, show_background_annotations=True)
-            #
-            # tree_hours = drgs_hours.convert_to_cluster_tree()
-            #
-            # if drgs_hours.get_results().is_empty():
-            #     warnings.warn(f"Empty results for room {room}")
-            #
-            # else:
-            #     if len(tree_hours.nodes) > 30:
-            #         tree_hours.plot_tree(title="Final node evolution",
-            #                              save_dir=f"{path_out_hour}/final_tree_hours.png",
-            #                              figsize=(27, 27))
-            #
-            #     elif len(tree_hours.nodes) < 7:
-            #         tree_hours.plot_tree(title="Final node evolution",
-            #                              save_dir=f"{path_out_hour}/final_tree_hours.png",
-            #                              figsize=(7, 7))
-            #
-            #     else:
-            #         tree_hours.plot_tree(title="Final node evolution",
-            #                              save_dir=f"{path_out_hour}/final_tree_hours.png",
-            #                              figsize=(14, 14))
-            #
-            # drgs_quarters.fit(quarter_time_series)
-            # drgs_quarters.results_per_quarter_hour(top_days=15, figsize=(50, 60), save_dir=path_out_quarter,
-            #                                        bars_linewidth=2, show_background_annotations=True)
-            #
-            # tree_quarters = drgs_quarters.convert_to_cluster_tree()
-            #
-            # if drgs_quarters.get_results().is_empty():
-            #     warnings.warn(f"Empty results for room {room}")
-            #
-            # else:
-            #     if len(tree_quarters.nodes) > 30:
-            #         tree_quarters.plot_tree(title="Final node evolution",
-            #                                 save_dir=f"{path_out_quarter}/final_tree_quarters.png",
-            #                                 figsize=(27, 27))
-            #     elif len(tree_quarters.nodes) < 7:
-            #         tree_quarters.plot_tree(title="Final node evolution",
-            #                                 save_dir=f"{path_out_quarter}/final_tree_quarters.png",
-            #                                 figsize=(7, 7))
-            #
-            #     else:
-            #         tree_quarters.plot_tree(title="Final node evolution",
-            #                                 save_dir=f"{path_out_quarter}/final_tree_quarters.png",
-            #                                 figsize=(14, 14))
-            #
-            # print(f"Elapsed time for room {room}: {time.time() - st}")
+            R1, C1, G1 = 5, 5, 20
+            R2, C2, G2 = 3, 15, 5
+
+            if room == "room" and DIFICULTY != "hard":
+                R1, C1, G1 = 3, 40, 20
+                R2, C2, G2 = 1, 80, 5
+
+            if DIFICULTY == "hard":
+                R1, C1, G1 = 13, 5, 30
+                R2, C2, G2 = 5, 10, 5
+
+            drgs_hours = DRGS(length_range=(3, 100), R=R1, C=C1, G=G1, epsilon=0.5, L=1, fusion_distance=0.0001)
+            drgs_quarters = DRGS(length_range=(3, 100), R=R2, C=C2, G=G2, epsilon=0.5, L=1, fusion_distance=0.0001)
+
+            drgs_hours.fit(hour_time_series)
+            drgs_hours.results_per_hour_day(top_days=30, figsize=(30, 120), save_dir=path_out_hour,
+                                            bars_linewidth=2, show_background_annotations=True,
+                                            show_plot=False)
+
+            tree_hours = drgs_hours.convert_to_cluster_tree()
+
+            if drgs_hours.get_results().is_empty():
+                warnings.warn(f"Empty results for room {room}")
+
+            else:
+                if len(tree_hours.nodes) > 30:
+                    tree_hours.plot_tree(title="Final node evolution",
+                                         save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                         figsize=(27, 27))
+
+                elif len(tree_hours.nodes) < 7:
+                    tree_hours.plot_tree(title="Final node evolution",
+                                         save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                         figsize=(7, 7))
+
+                else:
+                    tree_hours.plot_tree(title="Final node evolution",
+                                         save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                         figsize=(14, 14))
+
+            drgs_quarters.fit(quarter_time_series)
+            drgs_quarters.results_per_quarter_hour(top_days=30, figsize=(50, 120), save_dir=path_out_quarter,
+                                                   bars_linewidth=2, show_background_annotations=True,
+                                                   show_plot=False)
+
+            tree_quarters = drgs_quarters.convert_to_cluster_tree()
+
+            if drgs_quarters.get_results().is_empty():
+                warnings.warn(f"Empty results for room {room}")
+
+            else:
+                if len(tree_quarters.nodes) > 30:
+                    tree_quarters.plot_tree(title="Final node evolution",
+                                            save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                            figsize=(27, 27))
+                elif len(tree_quarters.nodes) < 7:
+                    tree_quarters.plot_tree(title="Final node evolution",
+                                            save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                            figsize=(7, 7))
+
+                else:
+                    tree_quarters.plot_tree(title="Final node evolution",
+                                            save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                            figsize=(14, 14))
+
+            print(f"Elapsed time for room {room}: {time.time() - st}")
 
 # Simple fit
 # time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
