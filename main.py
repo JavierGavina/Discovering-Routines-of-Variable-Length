@@ -159,7 +159,7 @@ if __name__ == "__main__":
     # time_series_2 = pd.Series([0, 0, 60, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0, 0, 0, 60, 60, 60, 60, 0, 0, 20, 40, 60, 30, 0, 0])
     # time_series_2.index = pd.date_range(start="2024-01-01", periods=len(time_series_2))
 
-    for DIFICULTY in ["hard"]:
+    for DIFICULTY in ["easy", "medium"]:
 
         ROOT_DATA = "data/data2"
         DICTIONARY_FILE = f"{ROOT_DATA}/metadata/dictionary_rooms.json"

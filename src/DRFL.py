@@ -1767,8 +1767,6 @@ class DRGS(DRFL):
                 new_routine.add_routine(cluster)
         return new_routine
 
-
-
     def fit(self, time_series: pd.Series) -> None:
         """
         Fit the DRGS algorithm to the time series data.
