@@ -649,7 +649,7 @@ class DRFL:
     #
     #     return new_cluster
 
-    def _subgroup(self, sequence: Sequence, R: float | int, C: int, G: float | int) -> Routines:
+    def _subgroup(self, sequence: Sequence, R: float | int, C: int, G: float | int, L: float | int) -> Routines:
         """
         Group the subsequences into clusters based on their magnitude and maximum absolute distance.
 
@@ -709,7 +709,7 @@ class DRFL:
         # Iterate through all the subsequences
         for i in range(len(sequence)):
             # Check if the magnitude of the subsequence is greater than G and the minimum of the sequence is greater than L
-            if sequence[i].magnitude() >= G and sequence[i].inverse_magnitude() >= self._L:
+            if sequence[i].magnitude() >= G and sequence[i].inverse_magnitude() >= L:
                 if routines.is_empty():  # Initialize first cluster if its empty
                     # Create a cluster from the first subsequence
                     routines.add_routine(Cluster(centroid=sequence[i].get_instance(),
@@ -897,7 +897,7 @@ class DRFL:
 
         # Group the subsequences into clusters based on their magnitude and
         # maximum absolute distance and filter the clusters based on their frequency
-        self.__routines = self._subgroup(sequence=self.__sequence, R=self._R, C=self._C, G=self._G)
+        self.__routines = self._subgroup(sequence=self.__sequence, R=self._R, C=self._C, G=self._G, L=self._L)
 
         # Obtain the indices of the clusters to keep based on the overlap test
         # keep_indices = self.__obtain_keep_indices(self._epsilon)
@@ -1829,8 +1829,8 @@ class DRGS(DRFL):
                 right_grow = self.__grow_from_right(instances)
 
                 # Obtain the routines for the left and right subsequences
-                left_routines = super()._subgroup(sequence=left_grow, R=self._R, C=self._C, G=self._G)
-                right_routines = super()._subgroup(sequence=right_grow, R=self._R, C=self._C, G=self._G)
+                left_routines = super()._subgroup(sequence=left_grow, R=self._R, C=self._C, G=self._G, L=self._L)
+                right_routines = super()._subgroup(sequence=right_grow, R=self._R, C=self._C, G=self._G, L=self._L)
 
                 # Union for the left and right routines from cluster k
                 join_routine = self.__union_routines(left_routines, right_routines)
@@ -2255,6 +2255,7 @@ class DRGS(DRFL):
                              show_grid: bool = False, show_hlines: bool = True,
                              vline_width: Union[int, float] = 3,
                              show_plot: bool = True,
+                             format: str = "png",
                              save_dir: Optional[str] = None):
 
         tree = self.__hierarchical_routines.convert_to_cluster_tree()
@@ -2343,7 +2344,7 @@ class DRGS(DRFL):
             plt.tight_layout()
 
             if save_dir is not None:
-                plt.savefig(f"{save_dir}/node_{name}.png")
+                plt.savefig(f"{save_dir}/node_{hierarchy:03}-{id_clust:03}.{format}", format=format)
 
             if show_plot:
                 plt.show()
@@ -2355,6 +2356,7 @@ class DRGS(DRFL):
                                  show_grid: bool = False, show_hlines: bool = True,
                                  vline_width: Union[int, float] = 3,
                                  show_plot: bool = True,
+                                 format: str = "png",
                                  save_dir: Optional[str] = None):
 
         tree = self.__hierarchical_routines.convert_to_cluster_tree()
@@ -2429,7 +2431,8 @@ class DRGS(DRFL):
 
                 plt.title(
                     f"Node: {name}; Date {date[i * 24 * 4].year} / {date[i * 24 * 4].month} / {date[i * 24 * 4].day}",
-                    fontsize=title_fontsize)
+                    fontsize=title_fontsize
+                )
 
                 plt.xlabel("Time", fontsize=15)
                 plt.ylabel("N minutes", fontsize=15)
@@ -2445,7 +2448,7 @@ class DRGS(DRFL):
             plt.tight_layout()
 
             if save_dir is not None:
-                plt.savefig(f"{save_dir}/node_{name}.png")
+                plt.savefig(f"{save_dir}/node_{hierarchy:03}-{id_clust:03}.{format}", format=format)
 
             if show_plot:
                 plt.show()

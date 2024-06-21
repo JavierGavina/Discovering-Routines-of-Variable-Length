@@ -5206,7 +5206,8 @@ class ClusterTree:
 
         # Save the plot if it is indicated
         if save_dir is not None:
-            plt.savefig(save_dir)
+            format = save_dir.split('.')[-1]
+            plt.savefig(save_dir, format=format)
 
         # Show the plot
         plt.show()

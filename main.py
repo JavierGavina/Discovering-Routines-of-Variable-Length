@@ -108,7 +108,7 @@ def plot_quarters_groundtruth(*, time_series: pd.Series,
         ax.set_xlabel("Time", fontsize=15)
         ax.set_ylabel("N minutes", fontsize=15)
         ax.set_xticks(np.arange(0, 24 * 4, 2), labels=[x for idx, x in enumerate(x_hour_minutes) if idx % 2 == 0],
-                      rotation=90)
+                      rotation=90, fontsize=10)
         ax.grid(True)
         ax.set_ylim(0, 17)
         ax.set_xlim(-1, 24 * 4 + 1)
@@ -120,7 +120,8 @@ def plot_quarters_groundtruth(*, time_series: pd.Series,
     plt.tight_layout()
 
     if save_dir is not None:
-        plt.savefig(save_dir)
+        format = save_dir.split(".")[-1]
+        plt.savefig(save_dir, format=format)
 
     if show_plot:
         plt.show()
@@ -147,7 +148,7 @@ def plot_hours_groundtruth(*, time_series: pd.Series,
                      fontsize=20)
         ax.set_xlabel("Time", fontsize=15)
         ax.set_ylabel("N minutes", fontsize=15)
-        ax.set_xticks(np.arange(0, 24, 1), labels=x_hour, rotation=90)
+        ax.set_xticks(np.arange(0, 24, 1), labels=x_hour, rotation=90, fontsize=10)
         ax.grid(True)
         ax.set_ylim(0, 70)
         ax.set_xlim(-1, 25)
@@ -159,7 +160,8 @@ def plot_hours_groundtruth(*, time_series: pd.Series,
     plt.tight_layout()
 
     if save_dir is not None:
-        plt.savefig(save_dir)
+        format = save_dir.split(".")[-1]
+        plt.savefig(save_dir, format=format)
 
     if show_plot:
         plt.show()
@@ -183,6 +185,7 @@ if __name__ == "__main__":
     os.makedirs(FIGS_PATH, exist_ok=True)
 
     for USER in ["02A8", "9FE9", "52EA", "402E", "682A", "F176"]:
+    # for USER in ["402E"]:
         st = time.time()
         for DIFICULTY in ["easy", "medium", "hard"]:
             DICTIONARY_FILE = f"{ROOT_DATA}/{USER}/metadata/dictionary_rooms.json"
@@ -231,7 +234,8 @@ if __name__ == "__main__":
                 path_out_quarter = f"{QUARTER_RESULTS}/{room}"
 
                 hour_time_series = get_time_series(path_to_feat_extraction=HOUR_EXTRACTED, room=room, select_month="3")
-                quarter_time_series = get_time_series(path_to_feat_extraction=QUARTER_EXTRACTED, room=room, select_month="3")
+                quarter_time_series = get_time_series(path_to_feat_extraction=QUARTER_EXTRACTED, room=room,
+                                                      select_month="3")
 
                 if np.sum(hour_time_series) == 0 or np.sum(quarter_time_series) == 0:
                     warnings.warn(f"Empty time series for room {room}")
@@ -246,32 +250,26 @@ if __name__ == "__main__":
                                      (255, 255, 0), (128, 0, 128), (0, 255, 255),
                                      (255, 165, 0), (144, 238, 144)]
 
-                plot_hours_groundtruth(time_series=hour_time_series, room=room, barcolors=np.array(customized_colors[id_room])/255,
+                plot_hours_groundtruth(time_series=hour_time_series, room=room,
+                                       barcolors=np.array(customized_colors[id_room]) / 255,
                                        top_days=15, figsize=(30, 60),
-                                       save_dir=f"{HOURS_GROUNDTRUTH}/{room}.png", show_plot=False)
+                                       save_dir=f"{HOURS_GROUNDTRUTH}/{room}.pdf", show_plot=False)
 
-                plot_quarters_groundtruth(time_series=quarter_time_series, room=room, barcolors=np.array(customized_colors[id_room])/255,
-                                          top_days=15, figsize=(50, 60),
-                                          save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.png", show_plot=False)
+                plot_quarters_groundtruth(time_series=quarter_time_series, room=room,
+                                          barcolors=np.array(customized_colors[id_room]) / 255,
+                                          top_days=15, figsize=(30, 60),
+                                          save_dir=f"{QUARTERS_GROUNDTRUTH}/{room}.pdf", show_plot=False)
 
-                R1, C1, G1 = 5, 10, 20
-                R2, C2, G2 = 3, 10, 5
-
-                if room == "room" and DIFICULTY != "hard":
-                    R1, C1, G1 = 3, 20, 30
-                    R2, C2, G2 = 1, 40, 5
-
-                if DIFICULTY == "hard":
-                    R1, C1, G1 = 13, 10, 30
-                    R2, C2, G2 = 5, 10, 5
+                R1, C1, G1 = 5, 10, 30  # Hours params
+                R2, C2, G2 = 3, 10, 8  # Quarters params
 
                 drgs_hours = DRGS(length_range=(3, 100), R=R1, C=C1, G=G1, epsilon=0.5, L=1, fusion_distance=0.0001)
                 drgs_quarters = DRGS(length_range=(3, 100), R=R2, C=C2, G=G2, epsilon=0.5, L=1, fusion_distance=0.0001)
 
                 drgs_hours.fit(hour_time_series)
-                drgs_hours.results_per_hour_day(top_days=30, figsize=(15, 60), save_dir=path_out_hour,
+                drgs_hours.results_per_hour_day(top_days=20, figsize=(20, 80), save_dir=path_out_hour,
                                                 bars_linewidth=2, show_background_annotations=True,
-                                                show_plot=False)
+                                                show_plot=False, format="pdf")
 
                 tree_hours = drgs_hours.convert_to_cluster_tree()
 
@@ -280,22 +278,22 @@ if __name__ == "__main__":
 
                 else:
                     if len(tree_hours.nodes) > 30:
-                        figsize=(27, 27)
+                        figsize = (27, 27)
 
                     elif len(tree_hours.nodes) < 7:
-                        figsize=(7, 7)
+                        figsize = (7, 7)
 
                     else:
-                        figsize=(14, 14)
+                        figsize = (14, 14)
 
                     tree_hours.plot_tree(title="Final node evolution",
-                                         save_dir=f"{path_out_hour}/final_tree_hours.png",
+                                         save_dir=f"{path_out_hour}/final_tree_hours.pdf",
                                          figsize=figsize)
 
                 drgs_quarters.fit(quarter_time_series)
-                drgs_quarters.results_per_quarter_hour(top_days=30, figsize=(25, 60), save_dir=path_out_quarter,
+                drgs_quarters.results_per_quarter_hour(top_days=20, figsize=(20, 80), save_dir=path_out_quarter,
                                                        bars_linewidth=2, show_background_annotations=True,
-                                                       show_plot=False)
+                                                       show_plot=False, format="pdf")
 
                 tree_quarters = drgs_quarters.convert_to_cluster_tree()
 
@@ -304,16 +302,16 @@ if __name__ == "__main__":
 
                 else:
                     if len(tree_quarters.nodes) > 30:
-                        figsize=(27, 27)
+                        figsize = (27, 27)
 
                     elif len(tree_quarters.nodes) < 7:
-                        figsize=(7, 7)
+                        figsize = (7, 7)
 
                     else:
-                        figsize=(14, 14)
+                        figsize = (14, 14)
 
                     tree_quarters.plot_tree(title="Final node evolution",
-                                            save_dir=f"{path_out_quarter}/final_tree_quarters.png",
+                                            save_dir=f"{path_out_quarter}/final_tree_quarters.pdf",
                                             figsize=figsize)
 
                 print(f"Elapsed time for room {room}: {time.time() - st2}")
