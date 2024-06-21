@@ -16,20 +16,20 @@ from itertools import product
 from src.DRFL import DRFL, ParallelSearchDRFL, DRGS
 from src.structures import HierarchyRoutine
 
-import argparse
-
-argparser = argparse.ArgumentParser()
-argparser.add_argument("--data_dir", type=str, default="data/activities-simulation.csv", help="Path to the data file")
-argparser.add_argument("--dictionary_dir", type=str, default="data/dictionary_rooms.json",
-                       help="Path to the dictionary file")
-argparser.add_argument("--param_m", type=int, default=4, help="length of the subsequences")
-argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
-argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
-argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
-argparser.add_argument("--epsilon", type=float, default=0.5, help="minimum overlap percentage")
-argparser.add_argument("--L", type=int, default=0, help="minimum number of subsequences in a routine")
-argparser.add_argument("--fusion_distance", type=float, default=0.001,
-                       help="minimum distance between clusters centroids to be fused")
+# import argparse
+#
+# argparser = argparse.ArgumentParser()
+# argparser.add_argument("--data_dir", type=str, default="data/activities-simulation.csv", help="Path to the data file")
+# argparser.add_argument("--dictionary_dir", type=str, default="data/dictionary_rooms.json",
+#                        help="Path to the dictionary file")
+# argparser.add_argument("--param_m", type=int, default=4, help="length of the subsequences")
+# argparser.add_argument("--param_R", type=int, default=10, help="least maximum distance between subsequences")
+# argparser.add_argument("--param_C", type=int, default=4, help="minimum number of matches of a routine")
+# argparser.add_argument("--param_G", type=int, default=60, help="minimum magnitude of a subsequence")
+# argparser.add_argument("--epsilon", type=float, default=0.5, help="minimum overlap percentage")
+# argparser.add_argument("--L", type=int, default=0, help="minimum number of subsequences in a routine")
+# argparser.add_argument("--fusion_distance", type=float, default=0.001,
+#                        help="minimum distance between clusters centroids to be fused")
 
 
 def extract_data_grouped_by_hour(path_to_data: str, path_to_dictionary: str) -> pd.DataFrame:
@@ -123,8 +123,9 @@ def plot_quarters_groundtruth(*, time_series: pd.Series,
         format = save_dir.split(".")[-1]
         plt.savefig(save_dir, format=format)
 
-    if show_plot:
-        plt.show()
+    # if show_plot:
+    #     plt.show()
+    plt.close()
 
 
 def plot_hours_groundtruth(*, time_series: pd.Series,
@@ -163,8 +164,9 @@ def plot_hours_groundtruth(*, time_series: pd.Series,
         format = save_dir.split(".")[-1]
         plt.savefig(save_dir, format=format)
 
-    if show_plot:
-        plt.show()
+    # if show_plot:
+    #     plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -184,8 +186,8 @@ if __name__ == "__main__":
     os.makedirs(RESULTS_PATH, exist_ok=True)
     os.makedirs(FIGS_PATH, exist_ok=True)
 
-    for USER in ["02A8", "9FE9", "52EA", "402E", "682A", "F176"]:
-    # for USER in ["402E"]:
+    # for USER in ["02A8", "9FE9", "52EA", "402E", "682A", "F176"]:
+    for USER in ["402E"]:
         st = time.time()
         for DIFICULTY in ["easy", "medium", "hard"]:
             DICTIONARY_FILE = f"{ROOT_DATA}/{USER}/metadata/dictionary_rooms.json"
@@ -263,6 +265,10 @@ if __name__ == "__main__":
                 R1, C1, G1 = 5, 10, 30  # Hours params
                 R2, C2, G2 = 3, 10, 8  # Quarters params
 
+                if room == "room":
+                    R1, C1, G1 = 3, 20, 30
+                    R2, C2, G2 = 1, 40, 8
+
                 drgs_hours = DRGS(length_range=(3, 100), R=R1, C=C1, G=G1, epsilon=0.5, L=1, fusion_distance=0.0001)
                 drgs_quarters = DRGS(length_range=(3, 100), R=R2, C=C2, G=G2, epsilon=0.5, L=1, fusion_distance=0.0001)
 
@@ -272,7 +278,6 @@ if __name__ == "__main__":
                                                 show_plot=False, format="pdf")
 
                 tree_hours = drgs_hours.convert_to_cluster_tree()
-
                 if drgs_hours.get_results().is_empty():
                     warnings.warn(f"Empty results for room {room}")
 

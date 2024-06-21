@@ -541,7 +541,7 @@ class DRFL:
             raise ValueError(
                 f"The starting point {t} of the subsequence is out of the time series range (0, {len(time_series) - self._m})")
 
-        window = time_series[t:t + self._m]  # Extract the time window
+        window = time_series.iloc[t:t + self._m]  # Extract the time window
 
         subsequence = Subsequence(instance=window.values,
                                   date=time_series.index[t],
@@ -1099,7 +1099,7 @@ class DRFL:
                     plt.axvline(x=sp, color=base_colors[row], linestyle="--")
                     for j in range(self._m):
                         if sp + j <= xlim[1]:
-                            plt.text(sp + j - 0.05, self.time_series[sp + j] - 0.8, f"{ts[sp + j]}",
+                            plt.text(sp + j - 0.05, self.time_series.iloc[sp + j] - 0.8, f"{ts.iloc[sp + j]}",
                                      fontsize=text_fontsize, backgroundcolor="white", color=base_colors[row])
                             colors[sp + j] = base_colors[row]
 
@@ -1587,7 +1587,7 @@ class DRGS(DRFL):
         for i in range(len(sequence)):
             # Check if the starting point plus the length of the subsequence is less than the length of the time series
             if starting_points[i] + m_next < len(self.time_series):
-                instance = self.time_series[starting_points[i]:starting_points[i] + m_next].values
+                instance = self.time_series.iloc[starting_points[i]:starting_points[i] + m_next].values
                 sequence_left.add_sequence(
                     Subsequence(instance=instance, date=dates[i], starting_point=starting_points[i])
                 )
@@ -1652,7 +1652,7 @@ class DRGS(DRFL):
         for i in range(len(sequence)):
             # Check if the starting point minus one is greater than 0
             if starting_points[i] - 1 > 0:
-                instance = self.time_series[starting_points[i] - 1:starting_points[i] + m_next - 1].values
+                instance = self.time_series.iloc[starting_points[i] - 1:starting_points[i] + m_next - 1].values
                 sequence_right.add_sequence(
                     Subsequence(instance=instance,
                                 date=self.time_series.index[starting_points[i] - 1],
@@ -1759,7 +1759,8 @@ class DRGS(DRFL):
                             clusters_to_drop.append(routine[i])
 
                         else:
-                            clusters_to_drop.append(routine[np.random.choice([i, j])])
+                            random_idx = int(np.random.choice([i, j]))
+                            clusters_to_drop.append(routine[random_idx])
 
         new_routine = Routines()
         for cluster in routine:
@@ -2046,8 +2047,8 @@ class DRGS(DRFL):
                         # Annotate the time series points with their values
                         for k in range(cluster.length_cluster_subsequences):
                             if sp + k <= xlim[1]:
-                                plt.text(x=sp + k - 0.05, y=self.time_series[sp + k] - 0.8,
-                                         s=f"{self.time_series[sp + k]}", fontsize=coloured_text_fontsize,
+                                plt.text(x=sp + k - 0.05, y=self.time_series.iloc[sp + k] - 0.8,
+                                         s=f"{self.time_series.iloc[sp + k]}", fontsize=coloured_text_fontsize,
                                          backgroundcolor="white", color=base_colors[j])
 
                                 colors[sp + k] = base_colors[j]
@@ -2057,8 +2058,8 @@ class DRGS(DRFL):
                     for k in range(len(self.time_series)):
                         # if the bar is not coloured (its value is gray and not an array), annotate the value
                         if xlim[0] < k < xlim[1] and not isinstance(colors[k], np.ndarray):
-                            plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
-                                     s=f"{self.time_series[k]}", fontsize=text_fontsize,
+                            plt.text(x=k - 0.05, y=self.time_series.iloc[k] + 0.8,
+                                     s=f"{self.time_series.iloc[k]}", fontsize=text_fontsize,
                                      color="black")
 
                 # Customize the title for each subplot
@@ -2093,8 +2094,11 @@ class DRGS(DRFL):
         if save_dir:
             plt.savefig(save_dir)
 
-        # Display the plot
-        plt.show()
+        # # Display the plot
+        # plt.show()
+
+        # Close the plot
+        plt.close()
 
     def plot_separate_hierarchical_results(self, title_fontsize: int = 20, show_xticks: bool = True,
                                            show_horizontal_lines: bool = True, show_background_annotations: bool = True,
@@ -2197,8 +2201,8 @@ class DRGS(DRFL):
                         # Annotate the time series points with their values
                         for k in range(cluster.length_cluster_subsequences):
                             if sp + k <= xlim[1]:
-                                plt.text(x=sp + k - 0.05, y=self.time_series[sp + k] - 0.8,
-                                         s=f"{self.time_series[sp + k]}", fontsize=coloured_text_fontsize,
+                                plt.text(x=sp + k - 0.05, y=self.time_series.iloc[sp + k] - 0.8,
+                                         s=f"{self.time_series.iloc[sp + k]}", fontsize=coloured_text_fontsize,
                                          backgroundcolor="white", color=base_colors[j])
 
                                 colors[sp + k] = base_colors[j]
@@ -2208,8 +2212,8 @@ class DRGS(DRFL):
                     for k in range(len(self.time_series)):
                         # if the bar is not coloured (its value is gray and not an array), annotate the value
                         if xlim[0] < k < xlim[1] and not isinstance(colors[k], np.ndarray):
-                            plt.text(x=k - 0.05, y=self.time_series[k] + 0.8,
-                                     s=f"{self.time_series[k]}", fontsize=text_fontsize,
+                            plt.text(x=k - 0.05, y=self.time_series.iloc[k] + 0.8,
+                                     s=f"{self.time_series.iloc[k]}", fontsize=text_fontsize,
                                      color="black")
 
                 # Customize the title for each subplot
@@ -2244,8 +2248,8 @@ class DRGS(DRFL):
             if save_dir:
                 plt.savefig(f"{save_dir}/hierarchy_{length}.png")
 
-            plt.show()
-
+            # plt.show()
+            plt.close()
             if length >= top_hierarchy:
                 break
 
@@ -2312,18 +2316,18 @@ class DRGS(DRFL):
 
                 for k in range(24):
                     if isinstance(grouped_barcolors[i][k], np.ndarray):
-                        plt.text(k - 0.05, self.time_series[i * 24 + k] - 0.8,
-                                 s=f"{self.time_series[i * 24 + k]}", fontsize=coloured_text_fontsize,
+                        plt.text(k - 0.05, self.time_series.iloc[i * 24 + k] - 0.8,
+                                 s=f"{self.time_series.iloc[i * 24 + k]}", fontsize=coloured_text_fontsize,
                                  backgroundcolor="white", color=base_colors[index - 1])
 
-                plt.bar(np.arange(0, 24, 1), self.time_series[i * 24:(i + 1) * 24],
+                plt.bar(np.arange(0, 24, 1), self.time_series.iloc[i * 24:(i + 1) * 24],
                         color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
 
                 if show_background_annotations:
                     for k in range(24):
                         if not isinstance(grouped_barcolors[i][k], np.ndarray):
-                            plt.text(k - 0.05, self.time_series[i * 24 + k] + 0.8,
-                                     s=f"{self.time_series[i * 24 + k]}", fontsize=text_fontsize,
+                            plt.text(k - 0.05, self.time_series.iloc[i * 24 + k] + 0.8,
+                                     s=f"{self.time_series.iloc[i * 24 + k]}", fontsize=text_fontsize,
                                      color="black")
 
                 plt.title(
@@ -2346,8 +2350,9 @@ class DRGS(DRFL):
             if save_dir is not None:
                 plt.savefig(f"{save_dir}/node_{hierarchy:03}-{id_clust:03}.{format}", format=format)
 
-            if show_plot:
-                plt.show()
+            # if show_plot:
+            #     plt.show()
+            plt.close()
 
     def results_per_quarter_hour(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30),
                                  bars_linewidth: int = 1.5,
@@ -2415,18 +2420,18 @@ class DRGS(DRFL):
 
                 for k in range(24 * 4):
                     if isinstance(grouped_barcolors[i][k], np.ndarray):
-                        plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] - 0.8,
-                                 s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
+                        plt.text(k - 0.05, self.time_series.iloc[i * 24 * 4 + k] - 0.8,
+                                 s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
                                  backgroundcolor="white", color=base_colors[index - 1])
 
-                plt.bar(np.arange(0, 24 * 4, 1), self.time_series[i * 24 * 4:(i + 1) * 24 * 4],
+                plt.bar(np.arange(0, 24 * 4, 1), self.time_series.iloc[i * 24 * 4:(i + 1) * 24 * 4],
                         color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
 
                 if show_background_annotations:
                     for k in range(24 * 4):
                         if not isinstance(grouped_barcolors[i][k], np.ndarray):
-                            plt.text(k - 0.05, self.time_series[i * 24 * 4 + k] + 0.8,
-                                     s=f"{self.time_series[i * 24 * 4 + k]}", fontsize=text_fontsize,
+                            plt.text(k - 0.05, self.time_series.iloc[i * 24 * 4 + k] + 0.8,
+                                     s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=text_fontsize,
                                      color="black")
 
                 plt.title(
@@ -2450,8 +2455,10 @@ class DRGS(DRFL):
             if save_dir is not None:
                 plt.savefig(f"{save_dir}/node_{hierarchy:03}-{id_clust:03}.{format}", format=format)
 
-            if show_plot:
-                plt.show()
+            # if show_plot:
+            #     plt.show()
+
+            plt.close()
 
     # def plot_results_per_day(self, top_days: int = 30, figsize: tuple[int, int] = (30, 30), bars_linewidth: int = 1.5,
     #                          show_background_annotations: bool = True, title_fontsize: int = 20,

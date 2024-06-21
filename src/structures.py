@@ -5209,5 +5209,6 @@ class ClusterTree:
             format = save_dir.split('.')[-1]
             plt.savefig(save_dir, format=format)
 
-        # Show the plot
-        plt.show()
+        # # Show the plot
+        # plt.show()
+        plt.close()
