@@ -186,8 +186,8 @@ if __name__ == "__main__":
     os.makedirs(RESULTS_PATH, exist_ok=True)
     os.makedirs(FIGS_PATH, exist_ok=True)
 
-    # for USER in ["02A8", "9FE9", "52EA", "402E", "682A", "F176"]:
-    for USER in ["402E"]:
+    for USER in ["02A8", "9FE9", "52EA", "402E", "682A", "F176"]:
+    # for USER in ["402E"]:
         st = time.time()
         for DIFICULTY in ["easy", "medium", "hard"]:
             DICTIONARY_FILE = f"{ROOT_DATA}/{USER}/metadata/dictionary_rooms.json"
