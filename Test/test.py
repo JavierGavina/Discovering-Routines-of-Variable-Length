@@ -1383,11 +1383,12 @@ class TestDRFL(unittest.TestCase):
         self._G = 4
         self._R = 2
         self._C = 3
+        self._L = 0
         self._epsilon = 1
         self.time_series = pd.Series([1, 3, 6, 4, 2, 1, 2, 3, 6, 4, 1, 1, 3, 6, 4, 1])
         self.time_series.index = pd.date_range(start="2024-01-01", periods=len(self.time_series))
-        self.drfl = DRFL(m=3, G=4, R=2, C=3, epsilon=1)
-        self.drfl_fitted = DRFL(m=3, G=4, R=2, C=3, epsilon=1)
+        self.drfl = DRFL(m=3, G=4, L=0, R=2, C=3, epsilon=1)
+        self.drfl_fitted = DRFL(m=3, G=4, L=0, R=2, C=3, epsilon=1)
         self.drfl_fitted.fit(self.time_series)
 
     def test__minimum_distance_index(self):
@@ -1567,8 +1568,8 @@ class TestDRFL(unittest.TestCase):
         expected_routine.add_routine(Cluster(np.array([5.5, 3.5, 1.25]), expected_instances_centroid3))
 
         # Check if the routine is the expected
-        routines_obtained_1 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, self._R, self._C, self._G)
-        routines_obtained_2 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, R=3, C=2, G=2)
+        routines_obtained_1 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, self._R, self._C, self._G, self._L)
+        routines_obtained_2 = self.drfl_fitted._subgroup(self.drfl_fitted._DRFL__sequence, R=3, C=2, G=2, L=0)
 
         self.assertEqual(routines_obtained_1, expected_routine)
         self.assertNotEquals(routines_obtained_2, expected_routine)

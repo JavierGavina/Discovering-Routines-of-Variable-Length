@@ -5151,7 +5151,9 @@ class ClusterTree:
 
     def plot_tree(self, node_size: int = 1000, with_labels: bool = True,
                   figsize: tuple[int, int] = (7, 7),
-                  title: Optional[str] = None, title_fontsize: int = 15,
+                  title_fontsize: int = 15,
+                  show_plot: bool = True,
+                  title: Optional[str] = None,
                   save_dir: Optional[str] = None):
 
         """
@@ -5209,6 +5211,8 @@ class ClusterTree:
             format = save_dir.split('.')[-1]
             plt.savefig(save_dir, format=format)
 
-        # # Show the plot
-        # plt.show()
+        # Show the plot
+        if show_plot:
+            plt.show()
+
         plt.close()

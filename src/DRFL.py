@@ -1495,6 +1495,35 @@ class DRGS(DRFL):
 
         return left + right
 
+    # @staticmethod
+    # def __filtered_repeated_left_right_routines(parent_routine: Routines, child_routine: Routines):
+    #     filtered_child = Routines()
+    #     for parent in parent_routine:
+    #         left_child = []
+    #         right_child = []
+    #         for child in child_routine:
+    #             new_val = {"child": child, "n_instances": len(child.get_sequences()), "cum_mag": child.cumulative_magnitude()}
+    #             if ClusterTree().is_left_child(parent, child):
+    #                 left_child.append(new_val)
+    #
+    #             if ClusterTree().is_right_child(parent, child):
+    #                 right_child.append(new_val)
+    #
+    #         for left in left_child:
+    #             max_left = max(left_child, key=lambda x: x["n_instances"])
+    #             if left["n_instances"] == max_left["n_instances"]:
+    #                 if left["child"] not in filtered_child:
+    #                     filtered_child.add_routine(left["child"])
+    #                     break
+    #
+    #         for right in right_child:
+    #             max_right = max(right_child, key=lambda x: x["n_instances"])
+    #             if right["n_instances"] == max_right["n_instances"]:
+    #                 if right["child"] not in filtered_child:
+    #                     filtered_child.add_routine(right["child"])
+    #                     break
+    #
+    #     return filtered_child
     @staticmethod
     def __filtered_repeated_left_right_routines(parent_routine: Routines, child_routine: Routines):
         filtered_child = Routines()
@@ -1502,7 +1531,8 @@ class DRGS(DRFL):
             left_child = []
             right_child = []
             for child in child_routine:
-                new_val = {"child": child, "n_instances": len(child.get_sequences())}
+                new_val = {"child": child, "n_instances": len(child.get_sequences()),
+                           "cum_mag": child.cumulative_magnitude()}
                 if ClusterTree().is_left_child(parent, child):
                     left_child.append(new_val)
 
@@ -1768,7 +1798,7 @@ class DRGS(DRFL):
                 new_routine.add_routine(cluster)
         return new_routine
 
-    def fit(self, time_series: pd.Series) -> None:
+    def fit(self, time_series: pd.Series, verbose: bool = True) -> None:
         """
         Fit the DRGS algorithm to the time series data.
 
@@ -1809,8 +1839,9 @@ class DRGS(DRFL):
             return
 
         self.__hierarchical_routines.add_routine(init_routine)
-        print(
-            f"Fitted routine for length: {self.__length_range[0]}, routines detected: {len(init_routine)}, time: {(time.time() - st):.2f}, seconds")
+        if verbose:
+            print(
+                f"Fitted routine for length: {self.__length_range[0]}, routines detected: {len(init_routine)}, time: {(time.time() - st):.2f}, seconds")
 
         # iterate over the range of lengths
         while actual_length <= self.__length_range[1] and not \
@@ -1861,8 +1892,9 @@ class DRGS(DRFL):
             # Add the filtered routines to the hierarchical routines
             self.__hierarchical_routines.add_routine(filtered_routine)
 
-            print(
-                f"Fitted routine for length: {actual_length}, routines detected: {len(filtered_routine)}, time: {(time.time() - st):.2f}, seconds")
+            if verbose:
+                print(
+                    f"Fitted routine for length: {actual_length}, routines detected: {len(filtered_routine)}, time: {(time.time() - st):.2f}, seconds")
 
             actual_length += 1  # Increment the hierarchy
         self.__already_fitted = True  # Set the already_fitted attribute to True
@@ -2362,6 +2394,7 @@ class DRGS(DRFL):
                                  vline_width: Union[int, float] = 3,
                                  show_plot: bool = True,
                                  format: str = "png",
+                                 xlim: Optional[tuple[str, str]] = None,
                                  save_dir: Optional[str] = None):
 
         tree = self.__hierarchical_routines.convert_to_cluster_tree()
@@ -2408,13 +2441,6 @@ class DRGS(DRFL):
 
                 vlines = [x - 24 * 4 * i for x in grouped_sp[i]]
 
-                # for vline in vlines:
-                #     plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
-                #     for k in range(hierarchy):
-                #         if vline + k < 24 * 4:
-                #             plt.text(vline + k - 0.05, self.time_series[vline + k] - 0.8,
-                #                      s=f"{self.time_series[vline + k]}", fontsize=coloured_text_fontsize,
-                #                      backgroundcolor="white", color=base_colors[index - 1])
                 for vline in vlines:
                     plt.axvline(x=vline, color=base_colors[index - 1], linestyle="--", linewidth=vline_width)
 
@@ -2424,26 +2450,49 @@ class DRGS(DRFL):
                                  s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=coloured_text_fontsize,
                                  backgroundcolor="white", color=base_colors[index - 1])
 
+                if xlim:
+                    # objetener los indices de las horas en xlim (format hh:mm)
+                    start_hour, end_hour = xlim
+                    st_h, st_m = start_hour.split(":")
+                    en_h, en_m = end_hour.split(":")
+                    st_h, st_m, en_h, en_m = int(st_h), int(st_m), int(en_h), int(en_m)
+                    st_idx = st_h * 4 + st_m // 15
+                    en_idx = en_h * 4 + en_m // 15
+
                 plt.bar(np.arange(0, 24 * 4, 1), self.time_series.iloc[i * 24 * 4:(i + 1) * 24 * 4],
                         color=grouped_barcolors[i], edgecolor="black", linewidth=bars_linewidth)
 
                 if show_background_annotations:
                     for k in range(24 * 4):
                         if not isinstance(grouped_barcolors[i][k], np.ndarray):
-                            plt.text(k - 0.05, self.time_series.iloc[i * 24 * 4 + k] + 0.8,
-                                     s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=text_fontsize,
-                                     color="black")
+                            if xlim:
+                                if st_idx <= k <= en_idx:
+                                    plt.text(k - 0.05, self.time_series.iloc[i * 24 * 4 + k] + 0.8,
+                                             s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=text_fontsize,
+                                             color="black")
+                            else:
+                                plt.text(k - 0.05, self.time_series.iloc[i * 24 * 4 + k] + 0.8,
+                                         s=f"{self.time_series.iloc[i * 24 * 4 + k]}", fontsize=text_fontsize,
+                                         color="black")
+
+                weekday = date[i * 24 * 4].weekday()
+                weekday_str = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][weekday]
 
                 plt.title(
-                    f"Node: {name}; Date {date[i * 24 * 4].year} / {date[i * 24 * 4].month} / {date[i * 24 * 4].day}",
+                    f"Node: {name}; Date {date[i * 24 * 4].year} / {date[i * 24 * 4].month} / {date[i * 24 * 4].day}; Weekday: {weekday_str}",
                     fontsize=title_fontsize
                 )
 
                 plt.xlabel("Time", fontsize=15)
                 plt.ylabel("N minutes", fontsize=15)
                 plt.ylim(0, 20)
-                plt.xlim(-1, 24 * 4 + 2)
+
                 plt.xticks(np.arange(0, 24 * 4, 2), x_hour_minutes, rotation=90)
+                if xlim:
+                    plt.xlim(st_idx - 1, en_idx + 1)
+                else:
+                    plt.xlim(-1, 24 * 4 + 2)
+
                 if show_grid:
                     plt.grid(True)
 
